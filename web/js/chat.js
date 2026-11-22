@@ -267,6 +267,7 @@ const Chat = (() => {
     try {
       const r = await G.ask(contents, {
         system: system(), web: !!S.get("tg.web", true), signal: busy.signal,
+        onStatus: m => { if (!reply.text && node.isConnected) node.innerHTML = '<span class="typing muted">' + esc(m) + "</span>"; },
         onPart: p => {
           reply.text = p.text;
           const now = Date.now();
