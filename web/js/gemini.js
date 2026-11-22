@@ -142,7 +142,22 @@ const G = (() => {
     return { text, sources, model };
   }
 
-  // Main call: contents = [{role, parts}], opts = {web, system, signal, onPart}
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const busyErr = e => e.status >= 500 || (e.status === 429 && !/PerDay|per day|limit: ?0\b/i.test(e.raw));
+  const fatal = e => e.name === "AbortError" || e.status === 0 || e.status === 401 || /API_KEY_INVALID/.test(e.raw);
+
+  // one model: if Google is busy (5xx), wait a moment and try once more
+  async function attempt(model, body, opts) {
+    try { return await streamOnce(model, body, opts.signal, opts.onPart); }
+    catch (e) {
+      if (!(e.status >= 500)) throw e;
+      if (opts.onStatus) opts.onStatus("⏳ Google busy hai, dobara try kar raha hoon…");
+      await wait(1500);
+      return streamOnce(model, body, opts.signal, opts.onPart);
+    }
+  }
+
+  // Main call: contents = [{role, parts}], opts = {web, system, signal, onPart, onStatus}
   async function ask(contents, opts) {
     if (!key()) throw new ApiError(401, "Pehle ⚙️ Settings mein apni free Gemini key daalo");
     const m = await models();
@@ -156,27 +171,32 @@ const G = (() => {
       for (const sm of order) {
         if (searchBlocked(sm)) continue;
         try {
-          const r = await streamOnce(sm, { ...base, tools: [{ google_search: {} }] }, opts.signal, opts.onPart);
+          const r = await attempt(sm, { ...base, tools: [{ google_search: {} }] }, opts);
           S.set("searchOk", sm);
           return r;
         } catch (e) {
-          if (e.name === "AbortError" || e.status === 0 || /API_KEY_INVALID/.test(e.raw)) throw e;
-          blockSearch(sm);
+          if (fatal(e)) throw e;
+          if (!busyErr(e)) blockSearch(sm); // not allowed on free tier: skip it today. Busy: just try the next one.
         }
       }
-      note = "🌐 Web search abhi free mein nahi chala — bina search ke jawab diya hai";
+      note = "🌐 Web search abhi nahi chala — bina search ke jawab diya hai";
     }
-    try {
-      const r = await streamOnce(m.chat, base, opts.signal, opts.onPart);
-      r.note = note; return r;
-    } catch (e) {
-      if (e.status === 429 && m.lite && m.lite !== m.chat) {
-        const r = await streamOnce(m.lite, base, opts.signal, opts.onPart);
-        r.note = (note ? note + " · " : "") + "Bada model busy tha, chhote model se jawab"; return r;
+    const chain = [...new Set([m.chat, m.lite, ...(m.search || [])])].filter(Boolean);
+    let lastErr = null;
+    for (let i = 0; i < chain.length; i++) {
+      try {
+        const r = await attempt(chain[i], base, opts);
+        r.note = [note, i ? "Bada model busy tha, doosre model se jawab" : ""].filter(Boolean).join(" · ");
+        return r;
+      } catch (e) {
+        lastErr = e;
+        if (fatal(e)) throw e;
+        if (e.status === 404) { S.del("models"); continue; }
+        if (!busyErr(e) && e.status !== 429) throw e;
+        if (opts.onStatus) opts.onStatus("⏳ Doosre model se try kar raha hoon…");
       }
-      if (e.status === 404) { S.del("models"); }
-      throw e;
     }
+    throw lastErr || new ApiError(503, friendly(503));
   }
 
   async function test() {
