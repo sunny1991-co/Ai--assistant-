@@ -320,13 +320,14 @@ public class MainActivity extends FragmentActivity {
             });
         }
 
-        /** Network fallback, only for the Gemini API and GitHub's public API. */
+        /** Network: Gemini API, GitHub public API, and the trading app's Sahayak link on this phone. */
         @JavascriptInterface
         public void http(String id, String method, String url, String headersJson, String body) {
             new Thread(() -> {
                 JSONObject o = new JSONObject();
                 try {
-                    if (!(url.startsWith("https://generativelanguage.googleapis.com/") || url.startsWith("https://api.github.com/")))
+                    if (!(url.startsWith("https://generativelanguage.googleapis.com/") || url.startsWith("https://api.github.com/")
+                            || url.startsWith("http://localhost:8787/sahayak/")))
                         throw new SecurityException("not allowed");
                     HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
                     c.setRequestMethod(method);

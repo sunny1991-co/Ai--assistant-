@@ -39,6 +39,15 @@ const Settings = (() => {
         <label class="row"><input type="checkbox" id="lock" ${window.Native.getLock() ? "checked" : ""}> App kholne pe fingerprint / phone lock maange</label>
       </div>` : ""}
 
+      <div class="card"><h3>🩺 Monitor (sirf owner ke liye)</h3>
+        <label class="row"><input type="checkbox" id="own" ${S.get("owner", false) ? "checked" : ""}> Trading + Court app ki monitoring dikhao</label>
+        ${IS_APP ? `<ol class="small">
+          <li>Termux mein trading app wale folder mein chalao: <code>python nse_sahayak_link.py --enable</code></li>
+          <li>Jo lamba token dikhe, copy karke yahan paste karo.</li></ol>
+        <label class="field">Trading link token<input id="ttok" type="password" autocomplete="off" placeholder="${S.get("tradeToken", "") ? "✅ laga hua hai (badalna ho to naya paste karo)" : "Token paste karo"}"></label>
+        <button class="btn" id="tsave">💾 Token save</button>` : '<p class="muted small">Laptop pe sirf Court app dikhega. Trading app phone pe hi dikhega.</p>'}
+      </div>
+
       <div class="card"><h3>💾 Backup</h3>
         <p class="muted small">Chats, cases aur settings (key ke bina) ek file mein. Naye phone/laptop mein wapas daal sakte ho.</p>
         <div class="row"><button class="btn" id="bexp">⬇️ Backup file banao</button>
@@ -78,9 +87,13 @@ const Settings = (() => {
     const lk = $("#lock");
     if (lk) lk.onchange = () => { const ok = window.Native.setLock(lk.checked); if (!ok) { lk.checked = false; toast("Phone mein fingerprint ya screen lock set nahi hai"); } else toast(lk.checked ? "🔒 Lock chalu" : "Lock band"); };
 
+    $("#own").onchange = e => { S.set("owner", e.target.checked); App.ownerNav(); toast(e.target.checked ? "🩺 Monitor neeche menu mein aa gaya" : "Monitor band"); };
+    const ts = $("#tsave");
+    if (ts) ts.onclick = () => { const v = $("#ttok").value.replace(/\s/g, ""); if (v.length < 32) { toast("Token poora paste karo"); return; } S.set("tradeToken", v); S.set("owner", true); App.ownerNav(); toast("✅ Token save — 🩺 Monitor kholo"); render(); };
+
     $("#bexp").onclick = () => {
       const data = {};
-      S.keys().filter(k => k !== "key" && k !== "models" && k !== "searchBad").forEach(k => { data[k] = S.get(k); });
+      S.keys().filter(k => !["key", "tradeToken", "models", "searchBad"].includes(k)).forEach(k => { data[k] = S.get(k); });
       saveFile("sahayak-backup-" + ymd() + ".json", "application/json", JSON.stringify({ app: "sahayak", v: 1, at: new Date().toISOString(), data }));
     };
     $("#bimp").onclick = () => $("#bfile").click();
@@ -91,7 +104,7 @@ const Settings = (() => {
         try {
           const j = JSON.parse(r.result);
           if (j.app !== "sahayak" || !j.data) throw new Error("x");
-          Object.keys(j.data).forEach(k => { if (k !== "key") S.set(k, j.data[k]); });
+          Object.keys(j.data).forEach(k => { if (k !== "key" && k !== "tradeToken") S.set(k, j.data[k]); });
           toast("✅ Backup wapas aa gaya"); App.go("chat"); location.reload();
         } catch (err) { toast("Ye Sahayak ki backup file nahi hai"); }
       };
