@@ -9,7 +9,7 @@ const Tools = (() => {
     { k: "pct", i: "％", t: "Percent", s: "Kitna % / % ka kitna" },
     { k: "days", i: "📆", t: "Din gino", s: "Do tareekh ke beech / din jodo" },
     { k: "court", i: "⚖️", t: "Judgments", s: "Court Judgments app" },
-    { k: "cdr", i: "📞", t: "CDR Analysis", s: "Jaldi aa raha hai", off: true },
+    { k: "cdr", i: "📞", t: "CDR Analysis", s: "Excel/CSV se" },
     { k: "cctv", i: "🎥", t: "CCTV chehre", s: IS_APP ? "Sirf laptop pe" : "Jaldi aa raha hai", off: true },
   ];
 
@@ -29,7 +29,8 @@ const Tools = (() => {
       else openLink("https://github.com/sunny1991-co/court-judgments-app/releases/download/app-latest/CourtJudgments.apk");
       return;
     }
-    if (k === "cdr" || k === "cctv") { toast(k === "cctv" && IS_APP ? "CCTV wala hissa laptop pe browser mein chalega" : "Ye hissa agle update mein aayega"); return; }
+    if (k === "cdr") { App.go("cdr"); return; }
+    if (k === "cctv") { toast(IS_APP ? "CCTV wala hissa laptop pe browser mein chalega" : "Ye hissa agle update mein aayega"); return; }
     const forms = {
       emi: `<h3>🏦 EMI</h3><label class="field">Loan (₹)<input id="a" inputmode="decimal" value="500000"></label>
         <label class="field">Byaaj % saalana<input id="b" inputmode="decimal" value="9"></label>
