@@ -94,3 +94,8 @@ main{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
 .vt{display:flex;flex-direction:column;gap:3px;padding:4px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:.72em;text-align:left}
 .vt img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;background:#000}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px;border:1px solid #888;vertical-align:middle}
+.dots{display:inline-flex;gap:5px;align-items:center;padding:6px 2px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--muted);animation:dotb 1.2s infinite ease-in-out}
+.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+@keyframes dotb{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
+.dots-ic{margin-right:6px}

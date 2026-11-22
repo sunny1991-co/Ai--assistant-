@@ -260,14 +260,15 @@ const Chat = (() => {
     cur.msgs.push(reply);
     drawMsgs();
     const node = $(`.msg[data-id="${reply.id}"] .b`);
-    node.innerHTML = '<span class="typing muted">Soch raha hoon</span>';
+    const DOTS = '<span class="dots" aria-label="Soch raha hoon"><i></i><i></i><i></i></span>';
+    node.innerHTML = DOTS;
     busy = new AbortController();
     $("#send").textContent = "⏹";
     let last = 0;
     try {
       const r = await G.ask(contents, {
         system: system(), web: !!S.get("tg.web", true), signal: busy.signal, query: (ctx.filter(m => m.role === "user").pop() || {}).text,
-        onStatus: m => { if (!reply.text && node.isConnected) node.innerHTML = '<span class="typing muted">' + esc(m) + "</span>"; },
+        onStatus: m => { if (!reply.text && node.isConnected) node.innerHTML = (/🌐/.test(m) ? '<span class="dots-ic">🌐</span>' : "") + DOTS; },
         onPart: p => {
           reply.text = p.text;
           const now = Date.now();
