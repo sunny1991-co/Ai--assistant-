@@ -18,7 +18,22 @@ const Chat = (() => {
       "Kanoon, dawai ya paise ke maamle mein poori jaankari do, par bolo ki bada faisla lene se pehle vakil/doctor/official source se pakka karein.",
       "Password, OTP, PIN, bank ya trading account ki details kabhi mat maango.",
       "Aaj ki tareekh: " + d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", weekday: "long" }) + ". Desh: Bharat.",
-    ].join("\n");
+      S.get("aboutMe", "") ? "User ne apne baare mein ye bataya hai (isko dhyaan mein rakh ke jawab do):\n" + S.get("aboutMe", "").slice(0, 3000) : "",
+      style(),
+    ].filter(Boolean).join("\n");
+  }
+
+  // The user's own answer style — this OVERRIDES the default style above.
+  const STYLE = {
+    len: { short: "Jawab bahut chhota rakho (2-5 line), jab tak user detail na maange.", detail: "Jawab poora aur detail mein do, har point samjhao." },
+    lang: { hi: "Hamesha Hindi (Devanagari) mein jawab do.", hinglish: "Hamesha Roman Hinglish mein jawab do (jaise: 'aapka case strong hai').", en: "Always answer in English." },
+    tone: { simple: "Bilkul aasaan, bol-chaal ki bhasha — kanooni/technical shabd ho to saath mein matlab likho.", formal: "Professional aur formal bhasha (vakil/office jaisi)." },
+    fmt: { points: "Jawab points/steps mein do.", para: "Jawab chhote paragraph mein do, list kam." },
+  };
+  function style() {
+    const st = S.get("style", {}), out = [];
+    Object.keys(STYLE).forEach(k => { if (st[k] && STYLE[k][st[k]]) out.push(STYLE[k][st[k]]); });
+    return out.length ? "USER KI PASAND (sabse zaroori — upar ke niyam se takraaye to isko maano):\n- " + out.join("\n- ") : "";
   }
 
   // ---------- storage ----------
@@ -209,6 +224,12 @@ const Chat = (() => {
     const inp = $("#inp");
     const text = (textArg != null ? textArg : inp.value).trim();
     if (!text && !pending.length) return;
+    const mem = text.match(/^(yaad rakho|yaad rakhna|याद रखो|याद रखना|remember)[\s:,-]+([\s\S]{3,})/i);
+    if (mem) {
+      const cur0 = S.get("aboutMe", "");
+      S.set("aboutMe", (cur0 ? cur0 + "\n" : "") + "- " + mem[2].trim().slice(0, 300));
+      toast("🧠 Yaad rakh liya — ⚙️ Settings > Mere baare mein mein dekh/badal sakte ho", 4000);
+    }
     const m = { id: uid(), role: "user", text, att: pending.map(a => ({ name: a.name, mime: a.mime, thumb: a.thumb })) };
     if (pending.length) memData[m.id] = pending;
     pending = [];
@@ -290,6 +311,7 @@ const Chat = (() => {
   function history() {
     const idx = index();
     openSheet(`<h3>🗂️ Purani chats</h3>
+      ${cur && cur.msgs.length ? '<button class="btn" id="hexp" style="margin-bottom:8px">⬇️ Abhi wali chat save karo</button>' : ""}
       <input class="field" id="hq" placeholder="🔍 Dhoondho" style="width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--bg)">
       <div id="hl"></div>
       ${idx.length ? '<button class="btn bad wide" id="hdel" style="margin-top:12px">🗑️ Saari chats hatao</button>' : ""}`, root => {
@@ -306,6 +328,7 @@ const Chat = (() => {
         });
       };
       draw("");
+      const he = $("#hexp", root); if (he) he.onclick = () => { closeSheet(); exportCur(); };
       $("#hq", root).oninput = e => draw(e.target.value);
       const hd = $("#hdel", root);
       if (hd) hd.onclick = () => { if (!confirmTwice(hd)) return; index().forEach(c => S.del("chat." + c.id)); S.set("chats", []); S.del("cur"); cur = { id: uid(), msgs: [] }; closeSheet(); App.go("chat"); render(); };
@@ -320,5 +343,21 @@ const Chat = (() => {
     return false;
   }
 
-  return { render, newChat, history, stopAll, confirmTwice, addFiles };
+  // open a fresh chat with a ready prompt (tools use this); pickFile opens the file picker first
+  function start(prompt, o) {
+    o = o || {};
+    App.go("chat"); newChat();
+    if (o.web != null) { S.set("tg.web", o.web); const b = $('.tg[data-t="web"]'); if (b) b.classList.toggle("on", o.web); }
+    const inp = $("#inp"); inp.value = prompt;
+    if (o.pickFile) { toast("📎 File/photo chuno, phir ➤ dabao"); $("#file").click(); }
+    else if (o.send) send(); else inp.focus();
+  }
+
+  function exportCur() {
+    if (!cur || !cur.msgs.length) { toast("Abhi chat khaali hai"); return; }
+    const t = cur.msgs.map(m => (m.role === "user" ? "👤 Aap" : "🤖 Sahayak") + ":\n" + (m.text || "") + ((m.src || []).length ? "\nSources: " + m.src.map(s => s.uri).join(" ") : "")).join("\n\n---\n\n");
+    saveFile("Sahayak-chat-" + ymd() + ".txt", "text/plain", t);
+  }
+
+  return { render, newChat, history, stopAll, confirmTwice, addFiles, start, exportCur };
 })();

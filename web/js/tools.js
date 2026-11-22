@@ -4,6 +4,9 @@ const Tools = (() => {
   const inr = n => "₹" + Math.round(n).toLocaleString("en-IN");
 
   const TOOLS = [
+    { k: "draft", i: "✍️", t: "Drafting", s: "Notice, application, RTI…" },
+    { k: "doc", i: "📄", t: "Document saar", s: "PDF/photo ke mukhya point" },
+    { k: "ocr", i: "🔤", t: "Photo se text", s: "Likha hua text nikalo" },
     { k: "emi", i: "🏦", t: "EMI", s: "Loan ki kisht" },
     { k: "int", i: "💰", t: "Byaaj", s: "Simple / compound" },
     { k: "pct", i: "％", t: "Percent", s: "Kitna % / % ka kitna" },
@@ -22,8 +25,45 @@ const Tools = (() => {
 
   function num(id) { const v = parseFloat(String($(id).value).replace(/,/g, "")); return isFinite(v) ? v : NaN; }
 
+  const DRAFTS = {
+    notice: ["⚖️ Legal notice", "ek legal notice (vakil ki taraf se, sahi format: reference, dinank, vishay, tathya ke points, maang, samay-seema, parinaam)"],
+    bail: ["🔓 Bail application", "court mein bail application ka draft (court ka naam, case/FIR no., dharayein, aadhar/grounds points mein, prarthana)"],
+    anticip: ["🛡️ Anticipatory bail", "anticipatory bail application ka draft (grounds points mein, prarthana)"],
+    rti: ["📮 RTI application", "RTI Act 2005 ki dhara 6(1) ke tahat application (PIO ka pata, maangi gayi jaankari ke saaf points, fee ka zikr)"],
+    affidavit: ["📜 Affidavit", "affidavit / shapath-patra ka draft (deponent ki details, para-wise bayan, verification)"],
+    police: ["🚓 Police complaint", "police station ko likhit shikayat (SHO ko, ghatna ka samay-jagah, tathya, maang ki FIR darj ho)"],
+    reply: ["↩️ Notice ka jawab", "aaye hue legal notice ka jawab (para-wise inkaar/sweekar, apni baat, maang)"],
+    app: ["📝 Application (general)", "ek saaf aur vinamra application (kisi office/bank/school ko)"],
+    letter: ["✉️ Letter / Email", "ek professional letter ya email"],
+    wa: ["💬 WhatsApp message", "chhota, saaf WhatsApp message"],
+  };
+
+  function draft() {
+    openSheet(`<h3>✍️ Drafting</h3>
+      <label class="field">Kya banana hai<select id="dk">${Object.entries(DRAFTS).map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("")}</select></label>
+      <label class="field">Kiski taraf se<input id="d1" placeholder="Naam / pad (jaise: Ram Lal, s/o …)"></label>
+      <label class="field">Kisko / kiske khilaaf<input id="d2" placeholder="Jaise: SHO Thana …, ya Shyam Kumar"></label>
+      <label class="field">Court / office (agar ho)<input id="d3" placeholder="Jaise: Sessions Court, Kanpur"></label>
+      <label class="field">Tathya — kya hua (jitna detail, utna achha)<textarea id="d4" rows="5" placeholder="Tareekh, ghatna, dhara, paise, jo bhi zaroori ho…"></textarea></label>
+      <label class="field">Bhasha<select id="d5"><option>Hindi</option><option>English</option></select></label>
+      <div class="row"><button class="btn primary" id="dgo">✍️ Draft banao</button><button class="btn" id="dx">Band karo</button></div>
+      <p class="muted small">Ye pehla draft hai — court/office mein dene se pehle khud padh ke sudhaar lena.</p>`, root => {
+      $("#dx", root).onclick = closeSheet;
+      $("#dgo", root).onclick = () => {
+        const d = DRAFTS[$("#dk", root).value];
+        const v = id => $(id, root).value.trim();
+        if (!v("#d4")) { toast("Tathya likho — kya hua"); return; }
+        const p = `${v("#d5")} mein ${d[1]} banao.\nKiski taraf se: ${v("#d1") || "[naam]"}\nKisko / kiske khilaaf: ${v("#d2") || "[naam]"}\nCourt / office: ${v("#d3") || "-"}\nTathya:\n${v("#d4")}\n\nJo jaankari nahi di gayi, uski jagah [ ] mein khaali chhodo — apni taraf se naam, tareekh ya dhara mat banao. Sahi kanoon (BNS/BNSS/BSA jahan lagu ho) ka hi zikr karo; pakka na ho to [check karein] likho.`;
+        closeSheet(); Chat.start(p, { send: true, web: false });
+      };
+    });
+  }
+
   function open(k) {
     const box = $("#tool");
+    if (k === "draft") { draft(); return; }
+    if (k === "doc") { Chat.start("Is document/photo ka saar do: 1) ye kya hai, 2) mukhya baatein points mein, 3) naam, tareekhein, rakam, dharayein (sections), 4) mere liye aage kya karna zaroori hai.", { pickFile: true, web: false }); return; }
+    if (k === "ocr") { Chat.start("Is photo/PDF mein jo likha hai, wo poora text jaisa ka taisa likh do (Hindi ho to Hindi mein, English ho to English mein). Kuch mat badlo, sirf saaf karke likho.", { pickFile: true, web: false }); return; }
     if (k === "court") {
       if (IS_APP) window.Native.openApp("in.courtjudgments.app", "https://github.com/sunny1991-co/court-judgments-app/releases/download/app-latest/CourtJudgments.apk");
       else openLink("https://github.com/sunny1991-co/court-judgments-app/releases/download/app-latest/CourtJudgments.apk");

@@ -32,7 +32,7 @@ const Voice = (() => {
     if (!text) return;
     speaking = true;
     try {
-      if (IS_APP) { await nativeCall("speak", text, langFor(text)); return; }
+      if (IS_APP) { if (window.Native.setRate) window.Native.setRate(S.get("voiceRate", 1)); await nativeCall("speak", text, langFor(text)); return; }
       if (!("speechSynthesis" in window)) return;
       await new Promise(resolve => {
         speechSynthesis.cancel();
@@ -40,7 +40,7 @@ const Voice = (() => {
         let left = parts.length;
         parts.forEach(p => {
           const u = new SpeechSynthesisUtterance(p);
-          u.lang = langFor(text);
+          u.lang = langFor(text); u.rate = S.get("voiceRate", 1);
           u.onend = u.onerror = () => { if (--left === 0) resolve(); };
           speechSynthesis.speak(u);
         });
