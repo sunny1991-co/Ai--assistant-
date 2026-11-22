@@ -25,6 +25,23 @@ const Settings = (() => {
         <label class="field">Bolne / sunne ki bhasha<select id="vl">
           <option value="hi-IN" ${vl === "hi-IN" ? "selected" : ""}>हिंदी / Hinglish</option>
           <option value="en-IN" ${vl === "en-IN" ? "selected" : ""}>English (India)</option></select></label>
+        <label class="field">Bolne ki speed<select id="vr">${[0.75, 1, 1.25, 1.5].map(r => `<option value="${r}" ${S.get("voiceRate", 1) == r ? "selected" : ""}>${r === 1 ? "Normal" : r < 1 ? "Dheere" : r + "x tez"}</option>`).join("")}</select></label>
+      </div>
+
+      <div class="card"><h3>🎯 Jawab mere hisaab se</h3>
+        <p class="muted small">Sahayak hamesha isi tareeke se jawab dega.</p>
+        ${[["len", "Lambai", [["", "Apne aap"], ["short", "Chhota"], ["detail", "Detail mein"]]],
+           ["lang", "Bhasha", [["", "Jaise main likhun"], ["hi", "Hindi"], ["hinglish", "Hinglish"], ["en", "English"]]],
+           ["tone", "Andaaz", [["", "Apne aap"], ["simple", "Aasaan bhasha"], ["formal", "Formal / professional"]]],
+           ["fmt", "Dikhawat", [["", "Apne aap"], ["points", "Points mein"], ["para", "Paragraph mein"]]]].map(([k, label, opts]) =>
+          `<label class="field">${label}<select data-style="${k}">${opts.map(([v, t]) => `<option value="${v}" ${(S.get("style", {})[k] || "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>`).join("")}
+      </div>
+
+      <div class="card"><h3>🧠 Mere baare mein (memory)</h3>
+        <p class="muted small">Chat mein <b>"yaad rakho: …"</b> likhoge to wo bhi yahan jud jayega.</p>
+        <p class="muted small">Jo yahan likhoge, Sahayak har jawab mein dhyaan rakhega. Jaise: "Main vakil hoon, Uttar Pradesh mein criminal case dekhta hoon. Jawab Hinglish mein, short points mein do." Password ya OTP yahan mat likhna.</p>
+        <label class="field"><textarea id="about" rows="4" placeholder="Apne kaam aur pasand ke baare mein likho…">${esc(S.get("aboutMe", ""))}</textarea></label>
+        <button class="btn" id="asave">💾 Save</button>
       </div>
 
       <div class="card"><h3>🎨 Dikhawat</h3>
@@ -82,6 +99,9 @@ const Settings = (() => {
     const kd = $("#kdel");
     if (kd) kd.onclick = () => { if (!Chat.confirmTwice(kd)) return; S.del("key"); S.del("models"); render(); };
     $("#vl").onchange = e => S.set("voiceLang", e.target.value);
+    $$("[data-style]").forEach(sel => sel.onchange = () => { const st = S.get("style", {}); st[sel.dataset.style] = sel.value; S.set("style", st); toast("✅ Ab jawab isi tareeke se"); });
+    $("#vr").onchange = e => S.set("voiceRate", +e.target.value);
+    $("#asave").onclick = () => { S.set("aboutMe", $("#about").value.trim()); toast("✅ Save — ab jawab aapke hisaab se"); };
     $("#th").onchange = e => { S.set("theme", e.target.value); App.applyLook(); };
     $("#fs").oninput = e => { S.set("fs", +e.target.value); $("#fsv").textContent = e.target.value; App.applyLook(); };
     const lk = $("#lock");

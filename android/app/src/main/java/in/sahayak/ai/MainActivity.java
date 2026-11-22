@@ -311,6 +311,12 @@ public class MainActivity extends FragmentActivity {
         }
 
         @JavascriptInterface
+        public void setRate(double r) {
+            final float rate = (float) Math.max(0.5, Math.min(2.0, r));
+            runOnUiThread(() -> withTts(() -> { if (ttsReady) tts.setSpeechRate(rate); }));
+        }
+
+        @JavascriptInterface
         public void stopSpeak() {
             runOnUiThread(() -> {
                 if (tts != null) tts.stop();
