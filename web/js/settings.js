@@ -59,9 +59,10 @@ const Settings = (() => {
 
     $("#kopen").onclick = () => openLink("https://aistudio.google.com/apikey");
     $("#ksave").onclick = async () => {
-      const v = $("#kin").value.trim();
+      // remove spaces, line breaks and quotes that come along when copying
+      const v = $("#kin").value.replace(/[\s"'`]/g, "");
       if (!v && !key) { toast("Pehle key paste karo"); return; }
-      if (v) { if (!/^[A-Za-z0-9_\-]{20,}$/.test(v)) { toast("Ye key jaisi nahi lag rahi"); return; } S.set("key", v); }
+      if (v) { if (!/^[\x21-\x7E]{20,}$/.test(v)) { toast("Key poori copy nahi hui — AI Studio se dobara copy karo"); return; } S.set("key", v); }
       $("#kres").textContent = "⏳ Test ho raha hai…";
       try {
         const mm = await G.test();
