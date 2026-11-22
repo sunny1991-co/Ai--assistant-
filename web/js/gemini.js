@@ -157,6 +157,56 @@ const G = (() => {
     }
   }
 
+  // ---------- Plan B web search (when Gemini's own Google Search is not free for this key) ----------
+  // Phone app: fetched directly. Laptop browser: through the r.jina.ai reader (sites block browsers).
+  async function getText(url) {
+    if (IS_APP) {
+      const r = await nativeCall("http", "GET", url, JSON.stringify({ "User-Agent": "Mozilla/5.0 (Linux; Android 14) Sahayak", "Accept-Language": "hi-IN,en-IN;q=0.8" }), "");
+      if (r.status !== 200) throw new Error("web " + r.status);
+      return r.text;
+    }
+    const res = await fetch("https://r.jina.ai/" + url, { headers: { "X-Return-Format": "html" } });
+    if (!res.ok) throw new Error("web " + res.status);
+    return res.text();
+  }
+  function rssItems(t) {
+    const d = new DOMParser().parseFromString(t, "text/xml");
+    return [...d.getElementsByTagName("item")].slice(0, 12).map(it => {
+      const g = n => (it.getElementsByTagName(n)[0] || {}).textContent || "";
+      return { title: g("title"), uri: g("link"), when: g("pubDate"), src: g("source") };
+    }).filter(x => x.title);
+  }
+  function ddgItems(t) {
+    const d = new DOMParser().parseFromString(t, "text/html");
+    return [...d.querySelectorAll(".result")].slice(0, 8).map(r => {
+      const a = r.querySelector("a.result__a"); if (!a) return null;
+      let u = a.getAttribute("href") || "";
+      const m = u.match(/[?&]uddg=([^&]+)/); if (m) u = decodeURIComponent(m[1]);
+      if (u.startsWith("//")) u = "https:" + u;
+      const sn = r.querySelector(".result__snippet");
+      return { title: a.textContent.trim(), uri: u, snip: sn ? sn.textContent.trim() : "" };
+    }).filter(x => x && /^https?:/.test(x.uri) && !/duckduckgo\.com\/y\.js/.test(x.uri));
+  }
+  async function webContext(q) {
+    q = String(q || "").slice(0, 200);
+    const newsy = /news|khabar|khabr|samachar|समाचार|खबर|aaj|today|latest|abhi|taaza|ताज़ा|आज/i.test(q);
+    let items = [];
+    const jobs = [];
+    if (newsy) {
+      const plain = q.replace(/(aaj|ki|ka|ke|news|khabrein|khabar|batao|bataiye|kya|hai|hain|today|latest|taaza|samachar|आज|की|खबर|खबरें|बताओ|समाचार)/gi, " ").trim();
+      const u = plain.length > 2 ? "https://news.google.com/rss/search?q=" + encodeURIComponent(plain + " when:2d") + "&hl=hi&gl=IN&ceid=IN:hi" : "https://news.google.com/rss?hl=hi&gl=IN&ceid=IN:hi";
+      jobs.push(getText(u).then(t => { items = items.concat(rssItems(t)); }).catch(() => {}));
+    }
+    jobs.push(getText("https://html.duckduckgo.com/html/?q=" + encodeURIComponent(q) + "&kl=in-en").then(t => { items = items.concat(ddgItems(t)); }).catch(() => {}));
+    await Promise.all(jobs);
+    if (!items.length) return null;
+    const seen = new Set();
+    items = items.filter(x => !seen.has(x.uri) && seen.add(x.uri)).slice(0, 14);
+    const text = "WEB SE MILE TAAZA RESULT (" + new Date().toLocaleString("en-IN") + "):\n" + items.map((x, i) => `${i + 1}. ${x.title}${x.src ? " — " + x.src : ""}${x.when ? " (" + x.when + ")" : ""}${x.snip ? "\n   " + x.snip : ""}\n   ${x.uri}`).join("\n") +
+      "\n\nUpar ke result ke hisaab se jawab do (yahi taaza jaankari hai). Jo baat result mein nahi, use pakka mat batao. Zaroori ho to result number [1], [2] likho.";
+    return { text, sources: items.slice(0, 8).map(x => ({ uri: x.uri, title: x.title.slice(0, 90) })) };
+  }
+
   // Main call: contents = [{role, parts}], opts = {web, system, signal, onPart, onStatus}
   async function ask(contents, opts) {
     if (!key()) throw new ApiError(401, "Pehle ⚙️ Settings mein apni free Gemini key daalo");
@@ -169,7 +219,7 @@ const G = (() => {
       const order = ok && m.search.includes(ok) ? [ok, ...m.search.filter(x => x !== ok)] : m.search;
       if (opts.onStatus) opts.onStatus("🌐 Web pe dhundh raha hoon…");
       for (const sm of order) {
-        if (searchBlocked(sm)) continue;
+        if (searchBlocked(sm) || S.get("planB", "") === ymd()) continue;
         try {
           const r = await attempt(sm, { ...base, tools: [{ google_search: {} }] }, opts);
           S.set("searchOk", sm);
@@ -179,7 +229,17 @@ const G = (() => {
           if (!busyErr(e)) blockSearch(sm); // not allowed on free tier: skip it today. Busy: just try the next one.
         }
       }
-      note = "🌐 Web search abhi nahi chala — bina search ke jawab diya hai";
+      // Plan B: our own search, results given to the model as context
+      S.set("planB", ymd());
+      if (opts.onStatus) opts.onStatus("🌐 Web pe dhundh raha hoon…");
+      let ctx = null;
+      try { ctx = await webContext(opts.query); } catch (e) { ctx = null; }
+      if (ctx) {
+        const last = contents[contents.length - 1];
+        contents = contents.slice(0, -1).concat([{ role: last.role, parts: last.parts.concat([{ text: ctx.text }]) }]);
+        base.contents = contents;
+        opts.planSources = ctx.sources;
+      } else note = "🌐 Web search abhi nahi chala — bina search ke jawab diya hai";
     }
     const chain = [...new Set([m.chat, m.lite, ...(m.search || [])])].filter(Boolean);
     let lastErr = null;
@@ -187,6 +247,7 @@ const G = (() => {
       try {
         const r = await attempt(chain[i], base, opts);
         r.note = [note, i ? "Bada model busy tha, doosre model se jawab" : ""].filter(Boolean).join(" · ");
+        if (opts.planSources && !(r.sources || []).length) r.sources = opts.planSources;
         return r;
       } catch (e) {
         lastErr = e;
@@ -200,7 +261,7 @@ const G = (() => {
   }
 
   async function test() {
-    S.del("models"); S.del("searchBad");
+    S.del("models"); S.del("searchBad"); S.del("planB");
     const m = await pickModels();
     return m;
   }

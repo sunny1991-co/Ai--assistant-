@@ -150,7 +150,7 @@ const Chat = (() => {
       return;
     }
     const lastModel = [...cur.msgs].reverse().find(m => m.role === "model");
-    box.innerHTML = cur.msgs.map(m => msgHtml(m, m === lastModel)).join("");
+    box.innerHTML = cur.msgs.filter(m => m.role === "user" || m.text || m.err || m.note || m === lastModel).map(m => msgHtml(m, m === lastModel)).join("");
     $$(".acts button", box).forEach(b => b.onclick = () => act(b.dataset.a, b.closest(".msg").dataset.id));
     box.scrollTop = box.scrollHeight;
   }
@@ -266,7 +266,7 @@ const Chat = (() => {
     let last = 0;
     try {
       const r = await G.ask(contents, {
-        system: system(), web: !!S.get("tg.web", true), signal: busy.signal,
+        system: system(), web: !!S.get("tg.web", true), signal: busy.signal, query: (ctx.filter(m => m.role === "user").pop() || {}).text,
         onStatus: m => { if (!reply.text && node.isConnected) node.innerHTML = '<span class="typing muted">' + esc(m) + "</span>"; },
         onPart: p => {
           reply.text = p.text;
