@@ -333,7 +333,9 @@ public class MainActivity extends FragmentActivity {
                 JSONObject o = new JSONObject();
                 try {
                     if (!(url.startsWith("https://generativelanguage.googleapis.com/") || url.startsWith("https://api.github.com/")
-                            || url.startsWith("http://localhost:8787/sahayak/")))
+                            || url.startsWith("http://localhost:8787/sahayak/")
+                            || (method.equals("GET") && (url.startsWith("https://news.google.com/rss")
+                                || url.startsWith("https://html.duckduckgo.com/html/")))))
                         throw new SecurityException("not allowed");
                     HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
                     c.setRequestMethod(method);
