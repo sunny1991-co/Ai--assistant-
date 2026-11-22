@@ -1,0 +1,48 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["android/**", "web/**", ".github/workflows/apk.yml"]
+permissions:
+  contents: write
+concurrency:
+  group: apk
+  cancel-in-progress: true
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Put the web app inside the APK
+        run: |
+          rm -rf android/app/src/main/assets/www
+          mkdir -p android/app/src/main/assets
+          cp -r web android/app/src/main/assets/www
+      - name: Build release APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: gradle --no-daemon assembleRelease
+      - name: Publish to release app-latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N: ${{ github.run_number }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk Sahayak.apk
+          NOTES="Sahayak AI — version 1.$N (versionCode: $N). Phone pe install karne ke liye neeche Sahayak.apk download karo."
+          gh release view app-latest >/dev/null 2>&1 || gh release create app-latest --title "Sahayak AI app (APK)" --notes "$NOTES" --latest
+          gh release upload app-latest Sahayak.apk --clobber
+          gh release edit app-latest --notes "$NOTES"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Sahayak-apk
+          path: Sahayak.apk
