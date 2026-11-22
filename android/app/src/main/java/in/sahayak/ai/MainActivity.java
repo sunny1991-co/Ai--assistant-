@@ -256,6 +256,35 @@ public class MainActivity extends FragmentActivity {
         });
     }
 
+    /** Indian voice: the one the user chose, else the best installed hi-IN / en-IN voice. */
+    private void pickVoice(String lang) {
+        try {
+            String want = prefs.getString("voice", "");
+            android.speech.tts.Voice best = null;
+            int bestScore = -1;
+            Locale target = Locale.forLanguageTag(lang);
+            for (android.speech.tts.Voice v : tts.getVoices()) {
+                if (v.getFeatures() != null && v.getFeatures().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)) continue;
+                if (!want.isEmpty() && v.getName().equals(want)) { best = v; break; }
+                Locale l = v.getLocale();
+                int score = 0;
+                if (l.getLanguage().equals(target.getLanguage())) score += 100;
+                if ("IN".equals(l.getCountry())) score += 50;
+                if (l.getLanguage().equals("hi") || l.getLanguage().equals("en")) score += 10;
+                score += v.getQuality() / 100;
+                if (!v.isNetworkConnectionRequired()) score += 1;
+                if (score > bestScore) { bestScore = score; best = v; }
+            }
+            if (best != null && bestScore >= 50 || best != null && !want.isEmpty() && best.getName().equals(want)) {
+                tts.setVoice(best);
+                return;
+            }
+        } catch (Exception ignored) { }
+        int ok = tts.setLanguage(Locale.forLanguageTag(lang));
+        if (ok == TextToSpeech.LANG_MISSING_DATA || ok == TextToSpeech.LANG_NOT_SUPPORTED)
+            tts.setLanguage(new Locale("en", "IN"));
+    }
+
     private void speakDone(String utterance) {
         if (utterance == null || utterance.contains("#")) return;
         boolean had;
@@ -296,9 +325,7 @@ public class MainActivity extends FragmentActivity {
         public void speak(String id, String text, String lang) {
             runOnUiThread(() -> withTts(() -> {
                 if (!ttsReady) { cb(id, obj("error", "Phone mein bolne wala engine nahi mila")); return; }
-                int ok = tts.setLanguage(Locale.forLanguageTag(lang));
-                if (ok == TextToSpeech.LANG_MISSING_DATA || ok == TextToSpeech.LANG_NOT_SUPPORTED)
-                    tts.setLanguage(new Locale("en", "IN"));
+                pickVoice(lang);
                 synchronized (speakWaiting) { speakWaiting.add(id); }
                 int max = 3500, n = 0;
                 for (int start = 0; start < text.length(); start += max, n++) {
@@ -308,6 +335,28 @@ public class MainActivity extends FragmentActivity {
                 }
                 if (text.isEmpty()) speakDone(id);
             }));
+        }
+
+        /** Indian-first list of voices on this phone: [{name, locale, net}] */
+        @JavascriptInterface
+        public void voices(String id) {
+            runOnUiThread(() -> withTts(() -> {
+                org.json.JSONArray arr = new org.json.JSONArray();
+                try {
+                    if (ttsReady) for (android.speech.tts.Voice v : tts.getVoices()) {
+                        if (v.getFeatures() != null && v.getFeatures().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)) continue;
+                        String l = v.getLocale().toLanguageTag();
+                        if (!(l.startsWith("hi") || l.equals("en-IN") || l.endsWith("-IN"))) continue;
+                        arr.put(new JSONObject().put("name", v.getName()).put("locale", l).put("net", v.isNetworkConnectionRequired()));
+                    }
+                } catch (Exception ignored) { }
+                cb(id, obj("voices", arr, "chosen", prefs.getString("voice", "")));
+            }));
+        }
+
+        @JavascriptInterface
+        public void setVoice(String name) {
+            prefs.edit().putString("voice", name == null ? "" : name).apply();
         }
 
         @JavascriptInterface

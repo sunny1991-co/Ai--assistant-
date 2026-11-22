@@ -25,6 +25,9 @@ const Settings = (() => {
         <label class="field">Bolne / sunne ki bhasha<select id="vl">
           <option value="hi-IN" ${vl === "hi-IN" ? "selected" : ""}>हिंदी / Hinglish</option>
           <option value="en-IN" ${vl === "en-IN" ? "selected" : ""}>English (India)</option></select></label>
+        <label class="field">Awaaz (Indian)<select id="vv"><option value="">⏳ Dhoondh raha hoon…</option></select></label>
+        <div class="row"><button class="btn" id="vtest">▶️ Suno</button></div>
+        <p class="muted small" id="vhint"></p>
         <label class="field">Bolne ki speed<select id="vr">${[0.75, 1, 1.25, 1.5].map(r => `<option value="${r}" ${S.get("voiceRate", 1) == r ? "selected" : ""}>${r === 1 ? "Normal" : r < 1 ? "Dheere" : r + "x tez"}</option>`).join("")}</select></label>
       </div>
 
@@ -100,6 +103,14 @@ const Settings = (() => {
     if (kd) kd.onclick = () => { if (!Chat.confirmTwice(kd)) return; S.del("key"); S.del("models"); render(); };
     $("#vl").onchange = e => S.set("voiceLang", e.target.value);
     $$("[data-style]").forEach(sel => sel.onchange = () => { const st = S.get("style", {}); st[sel.dataset.style] = sel.value; S.set("style", st); toast("✅ Ab jawab isi tareeke se"); });
+    Voice.list().then(r => {
+      const sel = $("#vv"); if (!sel) return;
+      sel.innerHTML = `<option value="">Apne aap (sabse achhi Indian)</option>` + r.voices.map(v => `<option value="${esc(v.name)}" ${v.name === r.chosen ? "selected" : ""}>${esc(v.label)}</option>`).join("");
+      if (!r.voices.length) $("#vhint").innerHTML = "Phone mein Indian awaaz nahi mili. Phone Settings → <b>Text-to-speech</b> → Google → ⚙️ → <b>Install voice data</b> → <b>Hindi (India)</b> aur <b>English (India)</b> download karo.";
+      else $("#vhint").textContent = "Aur achhi awaaz chahiye: phone Settings → Text-to-speech → Google → Install voice data → Hindi (India).";
+    }).catch(() => {});
+    $("#vv").onchange = e => Voice.choose(e.target.value);
+    $("#vtest").onclick = () => Voice.speak(S.get("voiceLang", "hi-IN") === "en-IN" ? "Hello! I am Sahayak, your assistant." : "नमस्ते! मैं सहायक हूँ। आपका case strong lag raha hai.");
     $("#vr").onchange = e => S.set("voiceRate", +e.target.value);
     $("#asave").onclick = () => { S.set("aboutMe", $("#about").value.trim()); toast("✅ Save — ab jawab aapke hisaab se"); };
     $("#th").onchange = e => { S.set("theme", e.target.value); App.applyLook(); };

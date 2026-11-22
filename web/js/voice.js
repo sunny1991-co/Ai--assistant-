@@ -26,6 +26,20 @@ const Voice = (() => {
     });
   }
 
+  // Laptop: prefer an Indian voice (Google हिन्दी / English India / Microsoft Hindi)
+  function webVoices() { return "speechSynthesis" in window ? speechSynthesis.getVoices().filter(v => /-IN$|^hi/i.test(v.lang)) : []; }
+  function pickWebVoice(lang) {
+    const all = "speechSynthesis" in window ? speechSynthesis.getVoices() : [];
+    const want = S.get("webVoice", "");
+    return all.find(v => v.name === want) || all.find(v => v.lang === lang && /google/i.test(v.name)) || all.find(v => v.lang === lang) || all.find(v => /-IN$/.test(v.lang)) || null;
+  }
+  async function list() {
+    if (IS_APP) { const r = await nativeCall("voices"); return { voices: (r.voices || []).map(v => ({ name: v.name, label: (v.locale.startsWith("hi") ? "हिंदी" : "English-India") + " · " + v.name.replace(/^[a-z]{2}-[a-z]{2}-x-/i, "").replace(/-(local|network)$/, "") + (v.net ? " (net)" : "") })), chosen: r.chosen || "" }; }
+    if ("speechSynthesis" in window && !speechSynthesis.getVoices().length) await new Promise(r => { speechSynthesis.onvoiceschanged = r; setTimeout(r, 1500); });
+    return { voices: webVoices().map(v => ({ name: v.name, label: v.lang + " · " + v.name })), chosen: S.get("webVoice", "") };
+  }
+  function choose(name) { if (IS_APP) window.Native.setVoice(name); else S.set("webVoice", name); }
+
   let speaking = false;
   async function speak(md) {
     const text = MD.plain(md).slice(0, 6000);
@@ -41,6 +55,7 @@ const Voice = (() => {
         parts.forEach(p => {
           const u = new SpeechSynthesisUtterance(p);
           u.lang = langFor(text); u.rate = S.get("voiceRate", 1);
+          const vv = pickWebVoice(u.lang); if (vv) u.voice = vv;
           u.onend = u.onerror = () => { if (--left === 0) resolve(); };
           speechSynthesis.speak(u);
         });
@@ -52,5 +67,5 @@ const Voice = (() => {
     if (IS_APP) window.Native.stopSpeak();
     else if ("speechSynthesis" in window) speechSynthesis.cancel();
   }
-  return { listen, speak, stop, canListen, canSpeak, isSpeaking: () => speaking };
+  return { listen, speak, stop, canListen, canSpeak, list, choose, isSpeaking: () => speaking };
 })();
