@@ -90,3 +90,7 @@ main{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
 .tbl{border-collapse:collapse;width:100%;font-size:.82em}
 .tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 5px;text-align:left;white-space:nowrap}
 .tbl tr[data-num]{cursor:pointer}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px}
+.vt{display:flex;flex-direction:column;gap:3px;padding:4px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-size:.72em;text-align:left}
+.vt img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;background:#000}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px;border:1px solid #888;vertical-align:middle}

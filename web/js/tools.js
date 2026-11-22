@@ -10,7 +10,7 @@ const Tools = (() => {
     { k: "days", i: "📆", t: "Din gino", s: "Do tareekh ke beech / din jodo" },
     { k: "court", i: "⚖️", t: "Judgments", s: "Court Judgments app" },
     { k: "cdr", i: "📞", t: "CDR Analysis", s: "Excel/CSV se" },
-    { k: "cctv", i: "🎥", t: "CCTV chehre", s: IS_APP ? "Sirf laptop pe" : "Jaldi aa raha hai", off: true },
+    { k: "cctv", i: "🎥", t: "CCTV", s: IS_APP ? "Sirf laptop pe" : "Chehre, log, gaadi", off: IS_APP },
   ];
 
   function render() {
@@ -30,6 +30,7 @@ const Tools = (() => {
       return;
     }
     if (k === "cdr") { App.go("cdr"); return; }
+    if (k === "cctv" && !IS_APP) { App.go("cctv"); return; }
     if (k === "cctv") { toast(IS_APP ? "CCTV wala hissa laptop pe browser mein chalega" : "Ye hissa agle update mein aayega"); return; }
     const forms = {
       emi: `<h3>🏦 EMI</h3><label class="field">Loan (₹)<input id="a" inputmode="decimal" value="500000"></label>
