@@ -60,7 +60,7 @@ const G = (() => {
       chat,
       lite: lite[0] || (names.includes("gemini-flash-lite-latest") ? "gemini-flash-lite-latest" : chat),
       // Google Search grounding is free only on some models: try these in order.
-      search: [...new Set([chat, ...flash.slice(1), "gemini-2.5-flash", ...lite].filter(n => names.includes(n)))],
+      search: [...new Set(["gemini-2.5-flash", "gemini-2.5-flash-lite", chat, ...flash.slice(1), ...lite].filter(n => names.includes(n)))],
       at: Date.now(),
     };
     S.set("models", m);
@@ -85,8 +85,27 @@ const G = (() => {
   function searchBlocked(m) { const b = S.get("searchBad", {}); return b[m] === ymd(); }
   function blockSearch(m) { const b = S.get("searchBad", {}); b[m] = ymd(); S.set("searchBad", b); }
 
+  // Less "thinking" = answer starts much sooner. Different model families use different settings.
+  function fast(model, body) {
+    if (S.get("noFast." + model, false)) return body;
+    const gc = { ...(body.generationConfig || {}) };
+    if (/^gemini-2\.5-flash/.test(model)) gc.thinkingConfig = { thinkingBudget: 0 };
+    else if (/^gemini-([3-9])/.test(model)) gc.thinkingConfig = { thinkingLevel: "low" };
+    else return body;
+    return { ...body, generationConfig: gc };
+  }
+
   // Read a streamed (SSE) answer; calls onPart({text, sources}) as it grows.
-  async function streamOnce(model, body, signal, onPart) {
+  async function streamOnce(model, body0, signal, onPart) {
+    let body = fast(model, body0);
+    try { return await streamRaw(model, body, signal, onPart); }
+    catch (e) {
+      if (body !== body0 && e.status === 400 && /thinking/i.test(e.raw)) { S.set("noFast." + model, true); return streamRaw(model, body0, signal, onPart); }
+      throw e;
+    }
+  }
+
+  async function streamRaw(model, body, signal, onPart) {
     const url = API + "models/" + encodeURIComponent(model) + ":streamGenerateContent?alt=sse";
     const res = await http("POST", url, body, signal);
     if (!res.ok) { const t = await res.text(); throw new ApiError(res.status, friendly(res.status, t), t); }
@@ -131,10 +150,15 @@ const G = (() => {
     bumpUsage();
     let note = "";
     if (opts.web) {
-      for (const sm of m.search) {
+      const ok = S.get("searchOk", "");
+      const order = ok && m.search.includes(ok) ? [ok, ...m.search.filter(x => x !== ok)] : m.search;
+      if (opts.onStatus) opts.onStatus("🌐 Web pe dhundh raha hoon…");
+      for (const sm of order) {
         if (searchBlocked(sm)) continue;
         try {
-          return await streamOnce(sm, { ...base, tools: [{ google_search: {} }] }, opts.signal, opts.onPart);
+          const r = await streamOnce(sm, { ...base, tools: [{ google_search: {} }] }, opts.signal, opts.onPart);
+          S.set("searchOk", sm);
+          return r;
         } catch (e) {
           if (e.name === "AbortError" || e.status === 0 || /API_KEY_INVALID/.test(e.raw)) throw e;
           blockSearch(sm);
