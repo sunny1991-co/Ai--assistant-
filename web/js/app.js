@@ -1,7 +1,7 @@
 // Screens, look, back button, update check.
 "use strict";
 const App = (() => {
-  const VIEWS = { chat: () => Chat.render(), cases: () => Cases.render(), tools: () => Tools.render(), settings: () => Settings.render() };
+  const VIEWS = { chat: () => Chat.render(), cases: () => Cases.render(), tools: () => Tools.render(), settings: () => Settings.render(), monitor: () => Monitor.render() };
   let current = "chat";
 
   function go(v) {
@@ -49,8 +49,12 @@ const App = (() => {
     return false;
   };
 
+  function ownerNav() { $("#nav-mon").hidden = !Monitor.enabled(); }
+
   function init() {
     applyLook();
+    ownerNav();
+    if (Monitor.enabled()) Monitor.check().then(() => { if (current === "chat" && !$(".msg")) Chat.render(); }).catch(() => {});
     $$("#nav a").forEach(a => a.onclick = e => { e.preventDefault(); go(a.dataset.v); });
     $("#btn-new").onclick = () => { go("chat"); Chat.newChat(); };
     $("#btn-history").onclick = () => Chat.history();
@@ -59,6 +63,6 @@ const App = (() => {
     setTimeout(() => checkUpdate(false), 3000);
   }
 
-  return { go, applyLook, checkUpdate, init, view: () => current };
+  return { go, applyLook, checkUpdate, init, ownerNav, view: () => current };
 })();
 App.init();
