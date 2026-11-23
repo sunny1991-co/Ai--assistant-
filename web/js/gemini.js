@@ -139,7 +139,7 @@ const G = (() => {
     const seen = new Set();
     sources = sources.filter(s => !seen.has(s.uri) && seen.add(s.uri));
     if (!text && finish === "SAFETY") throw new ApiError(400, friendly(400, "SAFETY"));
-    return { text, sources, model };
+    return { text, sources, model, finish };
   }
 
   const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -211,7 +211,8 @@ const G = (() => {
   async function ask(contents, opts) {
     if (!key()) throw new ApiError(401, "Pehle ⚙️ Settings mein apni free Gemini key daalo");
     const m = await models();
-    const base = { system_instruction: { parts: [{ text: opts.system }] }, contents, generationConfig: { temperature: 0.6 } };
+    const base = { system_instruction: { parts: [{ text: opts.system }] }, contents,
+      generationConfig: { temperature: 0.6, ...(opts.json ? { responseMimeType: "application/json", maxOutputTokens: 16384 } : {}) } };
     bumpUsage();
     let note = "";
     if (opts.web) {

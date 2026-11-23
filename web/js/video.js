@@ -295,6 +295,27 @@ const Video = (() => {
         S.set(K("vVoice" + k), r[2] ? (k === "A" ? "Kore" : "Aoede") : (k === "A" ? "Puck" : "Charon")); };
     });
   }
+  // Parse the AI's JSON; if it got cut off, keep every complete line it did send.
+  function readScript(txt) {
+    const t = String(txt || "").replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
+    try { const j = JSON.parse(t); if (j && (Array.isArray(j.lines) || Array.isArray(j.slides))) return j; } catch (e) { /* salvage below */ }
+    const key = /"(lines|slides)"\s*:\s*\[/.exec(txt || ""); if (!key) return null;
+    const objs = []; let depth = 0, inStr = false, esc = false, start = -1;
+    for (let i = key.index + key[0].length; i < txt.length; i++) {
+      const ch = txt[i];
+      if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') inStr = true;
+      else if (ch === "{") { if (depth++ === 0) start = i; }
+      else if (ch === "}") { if (--depth === 0 && start >= 0) { try { objs.push(JSON.parse(txt.slice(start, i + 1))); } catch (e) { /* skip */ } start = -1; } }
+      else if (ch === "]" && depth === 0) break;
+    }
+    if (objs.length < 4) return null;
+    const head = k => { const m = new RegExp('"' + k + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"').exec(txt); try { return m ? JSON.parse('"' + m[1] + '"') : ""; } catch (e) { return ""; } };
+    const out = { title: head("title"), description: head("description"), thumbnail_text: head("thumbnail_text"), tags: [], cut: true };
+    const castM = /"cast"\s*:\s*(\{[^}]*\})/.exec(txt); if (castM) try { out.cast = JSON.parse(castM[1]); } catch (e) { /* ignore */ }
+    out[key[1]] = objs;
+    return out;
+  }
   async function makePlan() {
     const q = $("#vq").value.trim(), facts = $("#vtopic").value.trim();
     if (q.length < 2 && facts.length < 15) { toast("Kuch to likho — jaise: Taj Mahal"); return; }
@@ -350,16 +371,22 @@ const Video = (() => {
       `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","cast":{"A":"(${DRS_LIST})","B":"(same list)"},"lines":[${LINE_JSON.replace("1-2 chhote bolchaal ke vakya", "1-2 short spoken sentences").replace("board/label ke liye 2-5 shabd", "2-5 words for the label").replace("SIRF jab is line se A ki dress badle", "ONLY when A changes costume from this line").replace("warna ye field mat do", "otherwise omit").replace("waise hi B ke liye", "same for B").replace("khaali chhodo", "leave empty")}]}\nAbout ${nl} lines.`;
     $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script ban rahi hai…';
     try {
-      const r = await G.ask([{ role: "user", parts: [{ text: isK ? (g ? KAHANI_G() : KAHANI()) : g ? globalPrompt(topic + GEN, nA, nB, cat, fmt, nl) : (style === "cartoon" ? CARTOON :
+      const reqContents = [{ role: "user", parts: [{ text: isK ? (g ? KAHANI_G() : KAHANI()) : g ? globalPrompt(topic + GEN, nA, nB, cat, fmt, nl) : (style === "cartoon" ? CARTOON :
         `YouTube video banana hai (Hindi, aam logon ke liye, aasaan bhasha). Vishay:\n${topic}\n\n` +
         `Sirf JSON do, aur kuch nahi:\n{"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)",` +
         `"slides":[{"emoji":"(1 emoji jo slide ko dikhaye)","heading":"(chhota, Hindi)","points":["(3 keyword, har ek 2-5 shabd)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
         `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche) aur uski narration ke ant mein ek chhoti line: "ye video sirf jaankari ke liye hai", 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, sirf jaankari hai — kisi nateeje ki guarantee nahi; apne case ke liye vakil se milein' + 'achhi lagi to like aur subscribe'. LEHJA (sabse zaroori — video AI jaisi nahi lagni chahiye): narration aise likho jaise ek insaan camera ke saamne dost se baat kar raha ho — "dekhiye", "ab socho", "yahan dhyaan dena" jaise shabd, chhote vakya, aap/aapke se baat, ek-do sawaal darshak se. Pehli slide ki pehli line 3 second mein dhyaan khinche (ek aam zindagi ki situation: "maan lijiye raat ko police aapke ghar aati hai…" — kisi asli vyakti ka naam nahi). Rataa-rataaya ya kitaabi bhasha nahi, "is video mein hum jaanenge" jaisi ghisi-piti line nahi. Screen ke points narration ko dohraayein nahi — sirf 2-5 shabd ke keyword. Aakhri slide mein darshak se ek sawaal: "aapke saath aisa hua hai? comment mein batao". Video mein kahin bhi "pakka paisa wapas milega" ya "case jeet jaoge" jaisi guarantee mat do. ` +
         `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
-        `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.`) + LANG }] }],
-        { system: g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, onPart: () => {} });
-      const t = r.text.replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
-      plan = JSON.parse(t);
+        `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.`) + LANG }] }];
+      const r = await G.ask(reqContents,
+        { system: g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, json: true, onPart: () => {} });
+      plan = readScript(r.text);
+      if (!plan) { // cut off or broken: try once more
+        $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script adhoori aayi, dobara likhwa raha hoon…';
+        const r2 = await G.ask(reqContents, { system: g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, json: true, onPart: () => {} });
+        plan = readScript(r2.text);
+      }
+      if (!plan) throw new Error("AI ki script do baar adhoori aayi — thodi der baad dobara dabao, ya Lambai chhoti karo");
       if (style === "cartoon" || isK) {
         const okD0 = d => (DRESS[String(d || "").toLowerCase()] ? String(d).toLowerCase() : "");
         plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^n/i.test(l.who || "") ? "N" : /^b/i.test(l.who || "") ? "B" : "A",
@@ -373,7 +400,7 @@ const Video = (() => {
       plan.short = len === "short"; plan.lang = g ? "en" : "hi"; plan.mode = mode; plan.cat = cat; plan.fmt = fmt;
       Object.keys(voices).forEach(k => delete voices[k]);
       Object.keys(photos).forEach(k => delete photos[k]);
-      $("#vmsg").textContent = "✅ Script taiyaar" + (g ? ` (format: ${{ qa: "sawaal-jawaab", myth: "myth vs fact", top: "top 5", story: "kahani" }[fmt] || "Hindi lesson"})` : "") + " — neeche padh ke sudhaar sakte ho";
+      $("#vmsg").textContent = (plan.cut ? "⚠️ Script thodi chhoti aayi (AI ne beech mein rok di) — " : "✅ ") + "Script taiyaar" + (g ? ` (format: ${{ qa: "sawaal-jawaab", myth: "myth vs fact", top: "top 5", story: "kahani" }[fmt] || "Hindi lesson"})` : "") + " — neeche padh ke sudhaar sakte ho";
       savePlan();
       drawEditor();
       if (plan.style === "cartoon") findPhotos();
