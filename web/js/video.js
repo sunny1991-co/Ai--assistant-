@@ -4,6 +4,7 @@
 const Video = (() => {
   let plan = null, busy = false;
   const voices = {}; // slide index -> {blob, dur} (owner's own recorded voice)
+  const photos = {}; // slide index -> HTMLImageElement (owner's own photo)
   const AI_VOICES = [["Charon", "👨 Aadmi — gambhir"], ["Puck", "👨 Aadmi — josh wala"], ["Orus", "👨 Aadmi — shaant"], ["Kore", "👩 Aurat — saaf"], ["Aoede", "👩 Aurat — garm"], ["Leda", "👩 Aurat — halki"]];
   const TTS_MODELS = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"];
 
@@ -18,7 +19,7 @@ const Video = (() => {
 
   // 🤖 Human-like AI voice (Gemini TTS, free tier). Returns an ArrayBuffer (WAV) or throws.
   async function aiVoice(text, voice) {
-    const body = { contents: [{ role: "user", parts: [{ text: "Ek Bharatiya vyakti ki tarah, bol-chaal ke andaaz mein, garmjoshi aur saaf uchcharan ke saath ye Hindi padho:\n" + text }] }],
+    const body = { contents: [{ role: "user", parts: [{ text: "Aise bolo jaise ek samajhdaar Bharatiya bada bhai apne dost ko chai pe samjha raha ho — aaram se, garmjoshi se, sawaal pe awaaz upar, zaroori baat pe zor, comma aur full stop pe halka ruk kar. News reader ya robot jaisa nahi. Ye Hindi bolo:\n" + text }] }],
       generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
     const ok = S.get("ttsModel", "");
     const order = ok ? [ok, ...TTS_MODELS.filter(m => m !== ok)] : TTS_MODELS;
@@ -126,8 +127,8 @@ const Video = (() => {
       const r = await G.ask([{ role: "user", parts: [{ text:
         `YouTube video banana hai (Hindi, aam logon ke liye, aasaan bhasha). Vishay:\n${topic}\n\n` +
         `Sirf JSON do, aur kuch nahi:\n{"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)",` +
-        `"slides":[{"emoji":"(1 emoji jo slide ko dikhaye)","heading":"(chhota, Hindi)","points":["(3 chhote point)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
-        `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche) aur uski narration ke ant mein ek chhoti line: "ye video sirf jaankari ke liye hai", 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, sirf jaankari hai — kisi nateeje ki guarantee nahi; apne case ke liye vakil se milein' + 'achhi lagi to like aur subscribe'. Video mein kahin bhi "pakka paisa wapas milega" ya "case jeet jaoge" jaisi guarantee mat do. ` +
+        `"slides":[{"emoji":"(1 emoji jo slide ko dikhaye)","heading":"(chhota, Hindi)","points":["(3 keyword, har ek 2-5 shabd)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
+        `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche) aur uski narration ke ant mein ek chhoti line: "ye video sirf jaankari ke liye hai", 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, sirf jaankari hai — kisi nateeje ki guarantee nahi; apne case ke liye vakil se milein' + 'achhi lagi to like aur subscribe'. LEHJA (sabse zaroori — video AI jaisi nahi lagni chahiye): narration aise likho jaise ek insaan camera ke saamne dost se baat kar raha ho — "dekhiye", "ab socho", "yahan dhyaan dena" jaise shabd, chhote vakya, aap/aapke se baat, ek-do sawaal darshak se. Pehli slide ki pehli line 3 second mein dhyaan khinche (ek aam zindagi ki situation: "maan lijiye raat ko police aapke ghar aati hai…" — kisi asli vyakti ka naam nahi). Rataa-rataaya ya kitaabi bhasha nahi, "is video mein hum jaanenge" jaisi ghisi-piti line nahi. Screen ke points narration ko dohraayein nahi — sirf 2-5 shabd ke keyword. Aakhri slide mein darshak se ek sawaal: "aapke saath aisa hua hai? comment mein batao". Video mein kahin bhi "pakka paisa wapas milega" ya "case jeet jaoge" jaisi guarantee mat do. ` +
         `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
         `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.` }] }],
         { system: "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, onPart: () => {} });
@@ -136,6 +137,7 @@ const Video = (() => {
       if (!Array.isArray(plan.slides) || !plan.slides.length) throw new Error("slides nahi mili");
       plan.short = len === "short";
       Object.keys(voices).forEach(k => delete voices[k]);
+      Object.keys(photos).forEach(k => delete photos[k]);
       $("#vmsg").textContent = "✅ Script taiyaar — neeche padh ke sudhaar sakte ho";
       drawEditor();
     } catch (e) { $("#vmsg").textContent = "❌ " + (e.message || "Script nahi bani — dobara try karo"); }
@@ -153,11 +155,14 @@ const Video = (() => {
         <label class="field">Heading<input data-h="${i}" value="${esc(s.heading || "")}"></label>
         <label class="field">Points (har line ek point)<textarea data-p="${i}" rows="3">${esc((s.points || []).join("\n"))}</textarea></label>
         <label class="field">🔊 Bolna hai<textarea data-n="${i}" rows="3">${esc(s.narration || "")}</textarea></label>
+        <div class="row"><button class="btn" data-pic="${i}">📷 ${photos[i] ? "Photo badlo" : "Apni photo lagao"}</button>${photos[i] ? `<button class="btn" data-unpic="${i}">✕ Photo hatao</button>` : ""}</div>
         <div class="row"><button class="btn" data-rec="${i}">🎙️ Apni awaaz record karo</button><span class="small" data-rs="${i}">${voices[i] ? "✅ Aapki awaaz (" + voices[i].dur.toFixed(0) + " sec) <button class='btn' data-play='" + i + "'>▶️</button>" : "Record nahi kiya to phone ki Indian awaaz"}</span></div></div>`).join("")}
       <div class="card"><label class="field">Awaaz (jo slide aapne record nahi ki)<select id="vvoice">
           ${AI_VOICES.map(([k, t]) => `<option value="ai:${k}" ${S.get("vVoice", "ai:Charon") === "ai:" + k ? "selected" : ""}>🤖 AI insaan jaisi — ${t}</option>`).join("")}
           <option value="phone" ${S.get("vVoice", "") === "phone" ? "selected" : ""}>📱 Phone ki Indian awaaz</option></select></label>
         <button class="btn" id="vtest">▶️ Awaaz suno</button>
+        <label class="row small"><input type="checkbox" id="vmusic" ${S.get("vMusic", true) ? "checked" : ""}> 🎵 Peeche halka music (apna banaya, copyright-free)</label>
+        <div class="banner small">💡 Video insaan jaisi lage, iske liye: 1) har slide pe <b>apni awaaz</b> record karo (sabse bada fark), 2) <b>apni kheenchi photo</b> lagao (court, thana, kagaz, apna haath — kisi ka chehra nahi), 3) script ko apne shabdon mein thoda badlo.</div>
         <button class="btn" id="vcheck" style="margin-top:8px">🔍 AI se script jaanchwao</button>
         <div id="vcres" class="small"></div>
         <div class="small" style="margin-top:8px">
@@ -171,6 +176,9 @@ const Video = (() => {
     $$("[data-copy]").forEach(b => b.onclick = () => copyText($("#" + b.dataset.copy).value));
     $("#vthumb").onclick = saveThumb;
     $$("[data-rec]").forEach(b => b.onclick = () => recordSlide(+b.dataset.rec));
+    $$("[data-pic]").forEach(b => b.onclick = () => pickPhoto(+b.dataset.pic));
+    $$("[data-unpic]").forEach(b => b.onclick = () => { readEdits(); delete photos[+b.dataset.unpic]; drawEditor(); });
+    $("#vmusic").onchange = e => S.set("vMusic", e.target.checked);
     $$("[data-play]").forEach(b => b.onclick = () => { const a = new Audio(URL.createObjectURL(voices[+b.dataset.play].blob)); a.play(); });
     $("#vmake").onclick = make;
     const gate = () => { $("#vmake").disabled = $$(".vok").some(c => !c.checked); };
@@ -186,6 +194,38 @@ const Video = (() => {
         const a = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/wav" }))); a.play();
       } catch (e) { toast("❌ " + e.message + " — phone ki awaaz chalegi", 4000); }
     };
+  }
+
+  function pickPhoto(i) {
+    readEdits();
+    const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
+    inp.onchange = () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      const img = new Image();
+      img.onload = () => { photos[i] = img; drawEditor(); };
+      img.onerror = () => toast("Photo khul nahi payi");
+      img.src = URL.createObjectURL(f);
+    };
+    inp.click();
+  }
+
+  // soft original background music (a few slow chords), mixed quietly under the voice
+  function music(ac, dest, start, dur) {
+    const out = ac.createGain(); out.gain.value = 0.05;
+    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+    out.connect(lp); lp.connect(dest);
+    const CH = [[220, 261.6, 329.6], [174.6, 220, 261.6], [196, 246.9, 293.7], [164.8, 207.7, 246.9]];
+    const step = 4;
+    for (let t = 0, k = 0; t < dur; t += step, k++) {
+      CH[k % 4].forEach(f => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = "sine"; o.frequency.value = f;
+        const a = start + t, e = Math.min(start + dur, a + step + 0.5);
+        g.gain.setValueAtTime(0, a); g.gain.linearRampToValueAtTime(0.33, a + 1.2); g.gain.linearRampToValueAtTime(0, e);
+        o.connect(g); g.connect(out); o.start(a); o.stop(e + 0.1);
+      });
+    }
+    out.gain.setValueAtTime(0.05, start + Math.max(0, dur - 2)); out.gain.linearRampToValueAtTime(0, start + dur);
   }
 
   // second AI pass: look for risky claims before making the video
@@ -237,16 +277,28 @@ const Video = (() => {
   function subtitle(ctx, w, h, text, prog, sc, F) {
     const words = String(text || "").split(/\s+/).filter(Boolean);
     if (!words.length) return;
-    const per = 7, n = Math.ceil(words.length / per), k = Math.min(n - 1, Math.floor(prog * n));
-    const line = words.slice(k * per, k * per + per).join(" ");
-    ctx.font = `bold ${30 * sc}px ${F}`; ctx.textAlign = "center";
-    const tw = Math.min(w - 40 * sc, ctx.measureText(line).width + 40 * sc), y = h - 70 * sc;
-    ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect((w - tw) / 2, y - 38 * sc, tw, 52 * sc);
-    ctx.fillStyle = "#fff"; ctx.fillText(line, w / 2, y);
+    // word-by-word highlight, like popular Shorts captions
+    const per = w < h ? 4 : 6, cur = Math.min(words.length - 1, Math.floor(Math.min(1, prog * 1.12) * words.length));
+    const k = Math.floor(cur / per), part = words.slice(k * per, k * per + per);
+    ctx.font = `bold ${(w < h ? 40 : 32) * sc}px ${F}`; ctx.textAlign = "left";
+    const sp = ctx.measureText(" ").width, ws = part.map(x => ctx.measureText(x).width);
+    const lw = ws.reduce((a, b) => a + b, 0) + sp * (part.length - 1);
+    const y = w < h ? h * 0.72 : h - 70 * sc, tw = Math.min(w - 30 * sc, lw + 40 * sc);
+    ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect((w - tw) / 2, y - 40 * sc, tw, 56 * sc);
+    let x = (w - lw) / 2;
+    part.forEach((p, j) => { ctx.fillStyle = k * per + j === cur ? "#ffd166" : "#fff"; ctx.fillText(p, x, y); x += ws[j] + sp; });
   }
   function frame(ctx, w, h, kind, s, prog, idx, total, channel, tsec) {
     const sc = Math.min(w, h) / 720, F = "'Noto Sans Devanagari','Noto Sans',sans-serif";
     bg(ctx, w, h, 215 + idx * 17, tsec);
+    const ph = kind === "slide" ? photos[idx] : (kind === "title" ? photos[0] : null);
+    if (ph && ph.naturalWidth) { // slow zoom/pan over the owner's photo, darkened so text stays readable
+      const z = 1.05 + 0.08 * prog, r = Math.max(w / ph.naturalWidth, h / ph.naturalHeight) * z;
+      const dw = ph.naturalWidth * r, dh = ph.naturalHeight * r;
+      ctx.drawImage(ph, (w - dw) / 2 - (idx % 2 ? 1 : -1) * 20 * prog, (h - dh) / 2, dw, dh);
+      const gr = ctx.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, "rgba(0,0,0,.72)"); gr.addColorStop(0.5, "rgba(0,0,0,.45)"); gr.addColorStop(1, "rgba(0,0,0,.75)");
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, w, h);
+    }
     ctx.save(); ctx.globalAlpha = Math.min(1, prog * 6); // fade-in at slide start
     ctx.textAlign = "left"; ctx.fillStyle = "#fff";
     const pad = 60 * sc, maxW = w - pad * 2;
@@ -344,7 +396,7 @@ const Video = (() => {
       const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2500000 });
       const chunks = []; rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
       // timeline: title 2.5s, slides (voice + 0.6s), end 2.5s
-      const segs = [{ kind: "title", d: 2.5 }];
+      const segs = [{ kind: "title", d: plan.short ? 1.2 : 2.5 }];
       bufs.forEach((b, i) => segs.push({ kind: "slide", i, d: b.duration + 0.6, buf: b }));
       segs.push({ kind: "end", d: 2.5 });
       let t = 0; segs.forEach(s => { s.start = t; t += s.d; }); const total = t;
@@ -352,6 +404,7 @@ const Video = (() => {
       frame(ctx, w, h, "title", plan.title, 0, 0, 1, ch);
       rec.start(1000);
       const t0 = ac.currentTime + 0.3;
+      if (S.get("vMusic", true)) music(ac, dest, t0, total);
       segs.forEach(s => { if (s.buf) { const src = ac.createBufferSource(); src.buffer = s.buf; src.connect(dest); src.start(t0 + s.start); } });
       await new Promise(done => {
         const iv = setInterval(() => {
@@ -376,5 +429,5 @@ const Video = (() => {
     busy = false; if (IS_APP) window.Native.keepScreenOn(false);
   }
 
-  return { render, _frame: frame };
+  return { render, _frame: frame, _photos: photos };
 })();
