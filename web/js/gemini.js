@@ -51,6 +51,7 @@ const G = (() => {
       if (!r.nextPageToken) break;
       page = r.nextPageToken;
     }
+    const dead = S.get("deadModels", {}); names = names.filter(n => !(dead[n] && Date.now() - dead[n] < 7 * 86400000)); // gave 404 lately
     const bad = /(preview|exp|tts|image|live|audio|embed|robotic|thinking|computer|vision|native|learnlm|-\d{3}$)/i;
     const ver = n => { const m = n.match(/^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$/); return m ? parseFloat(m[1]) : -1; };
     const flash = names.filter(n => !bad.test(n) && /^gemini-[\d.]+-flash$/.test(n)).sort((a, b) => ver(b) - ver(a));
@@ -98,11 +99,28 @@ const G = (() => {
   // Read a streamed (SSE) answer; calls onPart({text, sources}) as it grows.
   async function streamOnce(model, body0, signal, onPart) {
     let body = fast(model, body0);
-    try { return await streamRaw(model, body, signal, onPart); }
+    // JSON jobs (video scripts) don't need live text: one plain request is more reliable than a stream
+    const raw = (body0.generationConfig || {}).responseMimeType ? plainRaw : streamRaw;
+    try { return await raw(model, body, signal, onPart); }
     catch (e) {
-      if (body !== body0 && e.status === 400 && /thinking/i.test(e.raw)) { S.set("noFast." + model, true); return streamRaw(model, body0, signal, onPart); }
+      if (body !== body0 && e.status === 400 && /thinking/i.test(e.raw)) { S.set("noFast." + model, true); return raw(model, body0, signal, onPart); }
       throw e;
     }
+  }
+
+  async function plainRaw(model, body, signal, onPart) {
+    const res = await http("POST", API + "models/" + encodeURIComponent(model) + ":generateContent", body, signal);
+    const t = await res.text();
+    if (!res.ok) throw new ApiError(res.status, friendly(res.status, t), t);
+    let obj; try { obj = JSON.parse(t); } catch (e) { throw new ApiError(503, friendly(503), "bad json: " + t.slice(0, 200)); }
+    if (obj.error) { const code = +obj.error.code || 503; throw new ApiError(code, friendly(code, JSON.stringify(obj.error)), JSON.stringify(obj.error)); }
+    const c = (obj.candidates || [])[0] || {};
+    const text = ((c.content || {}).parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("");
+    const finish = c.finishReason || (obj.promptFeedback && obj.promptFeedback.blockReason ? "SAFETY" : "");
+    if (!text && finish === "SAFETY") throw new ApiError(400, friendly(400, "SAFETY"));
+    if (!text) throw new ApiError(503, friendly(503), "empty answer (" + (finish || "no finish") + ")");
+    onPart({ text, sources: [] });
+    return { text, sources: [], model, finish };
   }
 
   async function streamRaw(model, body, signal, onPart) {
@@ -276,7 +294,7 @@ const G = (() => {
       } else note = ytUsed ? "📺 YouTube ka taaza data dekh kar jawab diya" : "🌐 Web search abhi nahi chala — bina search ke jawab diya hai";
     }
     const chain = [...new Set([m.chat, m.lite, ...(m.search || [])])].filter(Boolean);
-    let lastErr = null;
+    let lastErr = null; const tries = [];
     for (let i = 0; i < chain.length; i++) {
       try {
         const r = await attempt(chain[i], base, opts);
@@ -284,9 +302,10 @@ const G = (() => {
         if (opts.planSources && !(r.sources || []).length) r.sources = opts.planSources;
         return r;
       } catch (e) {
-        lastErr = e;
+        lastErr = e; tries.push(chain[i] + ": " + (e.status || "?") + (e.raw ? " " + String(e.raw).replace(/\s+/g, " ").slice(0, 80) : ""));
+        e.tries = tries;
         if (fatal(e)) throw e;
-        if (e.status === 404) { S.del("models"); continue; }
+        if (e.status === 404) { const b = S.get("deadModels", {}); b[chain[i]] = Date.now(); S.set("deadModels", b); S.del("models"); continue; }
         if (!busyErr(e) && e.status !== 429) throw e;
         if (opts.onStatus) opts.onStatus("⏳ Doosre model se try kar raha hoon…");
       }
