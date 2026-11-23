@@ -255,7 +255,9 @@ const Video = (() => {
         <button class="btn primary wide" id="vplan">✍️ Script banao</button>
         <div id="vmsg" class="small" style="margin-top:6px"></div>
       </div>
+      <div class="card" id="vabroad"></div>
       <div id="vedit"></div></div>`;
+    if (typeof Trends !== "undefined") Trends.abroadPanel($("#vabroad"), t => { $("#vq").value = t; $("#vq").scrollIntoView({ behavior: "smooth", block: "center" }); toast("Vishay bhar diya — ab ✍️ Script banao"); });
     const chips = () => {
       const c = $("#vcat").value; S.set("vCat_g", c);
       $("#vchips").innerHTML = GCATS[c][1].map(q => `<button class="tg" data-idea="${esc(q)}">${esc(q)}</button>`).join("");
