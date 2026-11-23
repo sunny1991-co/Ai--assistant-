@@ -218,7 +218,7 @@ const Video = (() => {
       `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nTopic: ${topic}\n` + (cat === "hindi" ? "" : `Format: ${GFMT[fmt]}\n`) +
       `\nStyle: natural spoken English, short sentences, contractions, light clean humor, real reactions ("wait, what?", "no way!"). The very first line must hook in 3 seconds with a surprising fact or question. Vary rhythm. Never say "in this video we will". No filler, no repeated catchphrases. End: B gives a one-line recap, A asks viewers a question for the comments, then a quick "subscribe for more".\n` +
       `Accuracy and respect (strict): only well-established facts; never invent numbers, dates, names or quotes — if unsure, say it more generally. Respect every culture and religion: explain, never mock; no stereotypes; humor is never at a group's expense. No song lyrics or movie dialogue. No guarantees or personal advice.\n` +
-      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)"}]}\n` +
+      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
       `About ${nl} lines, mostly alternating (sometimes one speaker says two lines).`;
   }
 
@@ -243,7 +243,7 @@ const Video = (() => {
     const nl = { short: 8, mid: 18, long: 32 }[len];
     const CARTOON = `YouTube cartoon video ki script banani hai — do original cartoon kirdaar aapas mein baat karte hain (Hindi, aam logon ke liye). Vishay:\n${topic}\n\n` +
       `Kirdaar: A = "${nA}" — aam aadmi, darshak ki tarah sawaal puchta hai, kabhi confuse hota hai, halka mazaak karta hai. B = "${nB}" — samajhdaar bade, dheeraj se aasaan misaal dekar samjhate hain. B vakil NAHI hai — jaankari deta hai, salah nahi; zaroorat pe kehta hai "apne case ke liye vakil se milna".\n` +
-      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)"}]}\n` +
+      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
       `Lagbhag ${nl} lines, A aur B baari-baari (kabhi ek hi kirdaar 2 line bhi). Shuru: A ek aam zindagi ki pareshani/sawaal se (pehli line 3 second mein dhyaan khinche). B ki pehli line mein chhota sa: "dekho, ye sirf jaankari hai, kanooni salah nahi". Beech mein: seedha jawab, kanoon/court kya kehta hai (judgment diya ho to naam-saal), kya karein — steps. A beech-beech mein sawaal/shaq kare taaki baat asli lage. Aakhir: B saar + "apne case ke liye vakil se milna, nateeje ki guarantee koi nahi de sakta"; A darshakon se: "aapke saath aisa hua hai? comment mein batao, aur like-subscribe kar do". ` +
       `Mazaak halka aur saaf ho — peedit, jaati, dharm, aurat/aadmi ya kisi samuday pe mazaak nahi. Kitaabi ya ratti hui bhasha nahi. ` + RULES;
     $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script ban rahi hai…';
@@ -259,7 +259,7 @@ const Video = (() => {
       const t = r.text.replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
       plan = JSON.parse(t);
       if (style === "cartoon") {
-        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^b/i.test(l.who || "") ? "B" : "A", narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [] }));
+        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^b/i.test(l.who || "") ? "B" : "A", narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60) }));
         plan.style = "cartoon"; plan.names = { A: nA, B: nB };
       }
       if (!Array.isArray(plan.slides) || !plan.slides.length) throw new Error("script nahi mili — dobara dabao");
@@ -268,6 +268,7 @@ const Video = (() => {
       Object.keys(photos).forEach(k => delete photos[k]);
       $("#vmsg").textContent = "✅ Script taiyaar" + (g ? ` (format: ${{ qa: "sawaal-jawaab", myth: "myth vs fact", top: "top 5", story: "kahani" }[fmt] || "Hindi lesson"})` : "") + " — neeche padh ke sudhaar sakte ho";
       drawEditor();
+      if (plan.style === "cartoon") findPhotos();
     } catch (e) { $("#vmsg").textContent = "❌ " + (e.message || "Script nahi bani — dobara try karo"); }
   }
 
@@ -283,6 +284,7 @@ const Video = (() => {
         <select data-who="${i}"><option value="A" ${s.who === "A" ? "selected" : ""}>${GL() ? "🧳" : "🙋"} ${esc(p.names.A)}</option><option value="B" ${s.who === "B" ? "selected" : ""}>${GL() ? "🙋‍♀️" : "👴"} ${esc(p.names.B)}</option></select></div>
         <label class="field">🔊 Bolna hai<textarea data-n="${i}" rows="2">${esc(s.narration || "")}</textarea></label>
         <label class="field">🟩 Board pe<input data-h="${i}" value="${esc(s.heading || "")}"></label>
+        <div class="row small" data-phrow="${i}">${photoRow(s, i)}</div>
         <div class="row"><button class="btn" data-rec="${i}">🎙️ Apni awaaz</button><span class="small" data-rs="${i}">${voices[i] ? "✅ Aapki awaaz (" + voices[i].dur.toFixed(0) + " sec) <button class='btn' data-play='" + i + "'>▶️</button>" : ""}</span></div></div>`).join("") :
       p.slides.map((s, i) => `<div class="card"><h3>Slide ${i + 1}</h3>
         <label class="field">Heading<input data-h="${i}" value="${esc(s.heading || "")}"></label>
@@ -297,6 +299,7 @@ const Video = (() => {
         <label class="field">Awaaz (jo slide aapne record nahi ki)<select id="vvoice">
           ${AI_VOICES.map(([k, t]) => `<option value="ai:${k}" ${S.get("vVoice", "ai:Charon") === "ai:" + k ? "selected" : ""}>🤖 AI insaan jaisi — ${t}</option>`).join("")}
           <option value="phone" ${S.get("vVoice", "") === "phone" ? "selected" : ""}>📱 Phone ki Indian awaaz</option></select></label>`}
+        ${p.style === "cartoon" ? `<div class="row"><button class="btn" id="vphotos">🖼️ Topic ki photos dhundho</button><label class="row small"><input type="checkbox" id="vphon" ${p.noPhotos ? "" : "checked"}> Peeche photo dikhao</label></div><div class="small muted">Photos Wikimedia Commons se (free license) — credit description mein apne aap judta hai.</div>` : ""}
         <button class="btn${p.style === "cartoon" ? " primary" : ""}" id="vtest">${p.style === "cartoon" ? "▶️ Pehle namoona dekho-suno (shuru ki 3 line)" : "▶️ Awaaz suno"}</button>
         <label class="row small"><input type="checkbox" id="vlow" ${S.get("vLow", (navigator.deviceMemory || 8) <= 4) ? "checked" : ""}> 📉 Halki quality (purana/kam RAM phone, ya app blank ho jaye to)</label>
         <label class="row small"><input type="checkbox" id="vmusic" ${S.get("vMusic", true) ? "checked" : ""}> 🎵 Peeche halka music (apna banaya, copyright-free)</label>
@@ -329,7 +332,12 @@ const Video = (() => {
       $("#vva").onchange = e => { S.set(K("vVoiceA"), e.target.value); $("#vvoice").innerHTML = `<option value="ai:${e.target.value}"></option>`; };
       $("#vvb").onchange = e => S.set(K("vVoiceB"), e.target.value);
     }
-    if (p.style === "cartoon") { $("#vtest").onclick = preview; }
+    if (p.style === "cartoon") {
+      $("#vtest").onclick = preview;
+      $("#vphotos").onclick = () => findPhotos(true);
+      $("#vphon").onchange = e => { plan.noPhotos = !e.target.checked; };
+      bindPhotoRows();
+    }
     else $("#vtest").onclick = async () => {
       const v = $("#vvoice").value, t = (plan.slides[0] && plan.slides[0].narration) || "नमस्ते! आज हम एक ज़रूरी कानूनी सवाल समझेंगे।";
       try {
@@ -395,7 +403,7 @@ const Video = (() => {
       <div class="row"><button class="btn" id="pvx">⏹ Band karo</button></div>`, root => {
       const cv = $("#pvc", root), ctx = cv.getContext("2d"), st = $("#pvs", root);
       const ac = new (window.AudioContext || window.webkitAudioContext)();
-      let stop = false; const end = () => { stop = true; try { ac.close(); } catch (e) {} };
+      let stop = false; const end = () => { if (stop) return; stop = true; try { ac.close().catch(() => {}); } catch (e) {} };
       $("#pvx", root).onclick = () => { end(); closeSheet(); };
       cartoonFrame(ctx, cw, chh, "title", plan.title, 0, 0, 1, S.get(K("vChannel"), ""), 0, 0);
       (async () => {
@@ -717,7 +725,7 @@ const Video = (() => {
     }
     return fy;
   }
-  function board(ctx, w, h, text, emoji, sc, F) {
+  function boardBig(ctx, w, h, text, emoji, sc, F) {
     const v = w < h, bx = v ? 50 * sc : w * 0.27, by = v ? 120 * sc : 70 * sc, bw = v ? w - 100 * sc : w * 0.46, bh = v ? 380 * sc : 230 * sc;
     ctx.fillStyle = "#7a5230"; rr(ctx, bx - 12 * sc, by - 12 * sc, bw + 24 * sc, bh + 24 * sc, 14 * sc); ctx.fill();
     ctx.fillStyle = "#2f5d48"; ctx.fillRect(bx, by, bw, bh);
@@ -728,9 +736,110 @@ const Video = (() => {
     ctx.font = `bold ${(v ? 50 : 40) * sc}px ${F}`;
     wrap(ctx, text || "", bx + bw / 2, y, bw - 40 * sc, (v ? 60 : 48) * sc, 3);
   }
+  // ---------- topic photos (Wikimedia Commons, free licenses only) ----------
+  const imgs = {}; // url -> HTMLImageElement (loaded)
+  const sets = {}; // search words -> { list, i }
+  const stripTags = h => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+  const OK_LIC = /^(cc0|public domain|pd\b|pd-|cc[ -]by(-sa)?[ -]?\d)/i;
+  async function commons(q) {
+    const u = "https://commons.wikimedia.org/w/api.php?" + new URLSearchParams({ action: "query", format: "json", origin: "*", generator: "search", gsrnamespace: "6",
+      gsrsearch: q + " filetype:bitmap", gsrlimit: "20", prop: "imageinfo", iiprop: "url|size|mime|extmetadata", iiurlwidth: "1280",
+      iiextmetadatafilter: "LicenseShortName|Artist" });
+    const res = await fetch(u); if (!res.ok) throw new Error("Wikimedia: " + res.status);
+    const j = await res.json();
+    return Object.values((j.query || {}).pages || {}).sort((a, b) => (a.index || 0) - (b.index || 0)).map(p => {
+      const ii = (p.imageinfo || [])[0] || {}, m = ii.extmetadata || {};
+      return { url: ii.thumburl || ii.url, w: ii.width || 0, h: ii.height || 0, mime: ii.mime || "", page: ii.descriptionurl || "",
+        license: stripTags((m.LicenseShortName || {}).value), artist: stripTags((m.Artist || {}).value).slice(0, 80) || "unknown", title: String(p.title || "").replace(/^File:/, "") };
+    }).filter(x => x.url && /jpe?g|png/i.test(x.mime) && x.w >= 800 && x.h >= 450 && OK_LIC.test(x.license));
+  }
+  function loadImg(url) {
+    if (imgs[url]) return Promise.resolve(imgs[url]);
+    const viaTag = () => new Promise(ok => { const im = new Image(); im.crossOrigin = "anonymous"; im.onload = () => { imgs[url] = im; ok(im); }; im.onerror = () => ok(null); im.src = url; });
+    if (/^blob:/.test(url)) return viaTag();
+    return fetch(url).then(r => { if (!r.ok) throw 0; return r.blob(); })
+      .then(b => new Promise(ok => { const im = new Image(); im.onload = () => { imgs[url] = im; ok(im); }; im.onerror = () => ok(null); im.src = URL.createObjectURL(b); }))
+      .catch(viaTag);
+  }
+  function photoRow(s, i) {
+    if (!s.photo) return `<span class="muted">🖼️ ${s.photoQ ? "Photo: " + esc(s.photoQ) + " — dhundhna baaki" : "Photo nahi (pichhli line wali chalegi)"}</span> <button class="btn" data-phown="${i}">📷 Apni</button>`;
+    return `<img src="${esc(s.photo.url)}" alt="" style="width:76px;height:44px;object-fit:cover;border-radius:6px"> <span class="muted">${esc(s.photo.own ? "Aapki photo" : s.photo.title.slice(0, 28))}</span>
+      ${s.photo.own ? "" : `<button class="btn" data-phnext="${i}">🔄 Doosri</button>`}<button class="btn" data-phdel="${i}">✕</button><button class="btn" data-phown="${i}">📷 Apni</button>`;
+  }
+  function bindPhotoRows() {
+    $$("[data-phnext]").forEach(b => b.onclick = async () => {
+      const i = +b.dataset.phnext, s = plan.slides[i], set = sets[s.photoQ]; if (!set || !set.list.length) return;
+      set.i = (set.i + 1) % set.list.length; const c = set.list[set.i];
+      plan.slides.forEach(x => { if (x.photoQ === s.photoQ) x.photo = c; }); await loadImg(c.url); refreshPhotoRows();
+    });
+    $$("[data-phdel]").forEach(b => b.onclick = () => { const s = plan.slides[+b.dataset.phdel]; s.photo = null; s.photoQ = ""; refreshPhotoRows(); });
+    $$("[data-phown]").forEach(b => b.onclick = () => {
+      const i = +b.dataset.phown, inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*";
+      inp.onchange = async () => { const f = inp.files && inp.files[0]; if (!f) return; const url = URL.createObjectURL(f);
+        if (await loadImg(url)) { plan.slides[i].photo = { url, own: true, title: "", artist: "", license: "", page: "" }; refreshPhotoRows(); } else toast("Photo khul nahi payi"); };
+      inp.click();
+    });
+  }
+  function refreshPhotoRows() {
+    plan.slides.forEach((s, i) => { const el = $(`[data-phrow="${i}"]`); if (el) el.innerHTML = photoRow(s, i); });
+    bindPhotoRows(); credits();
+  }
+  // add/refresh "Photo credits" at the end of the description (CC licenses need attribution)
+  function credits() {
+    const seen = new Set(), list = [];
+    plan.slides.forEach(s => { const p = s.photo; if (p && !p.own && !seen.has(p.page)) { seen.add(p.page); list.push(`• "${p.title}" — ${p.artist} (${p.license}), Wikimedia Commons: ${p.page}`); } });
+    const d = $("#vd"); const base = (d ? d.value : plan.description || "").replace(/\n*📷 Photo credits:[\s\S]*$/, "");
+    plan.description = base + (list.length ? "\n\n📷 Photo credits:\n" + list.join("\n") : "");
+    if (d) d.value = plan.description;
+  }
+  async function findPhotos(manual) {
+    const qs = [...new Set(plan.slides.map(s => s.photoQ).filter(Boolean))].slice(0, 8);
+    const out = $("#vmsg");
+    if (!qs.length) { if (manual) toast("Script mein photo ke liye koi cheez nahi mili — 📷 Apni photo laga sakte ho"); return; }
+    let got = 0, failed = 0;
+    for (let k = 0; k < qs.length; k++) {
+      const q = qs[k];
+      if (out) out.innerHTML = `<span class="dots"><i></i><i></i><i></i></span> Photo dhundh raha hoon… ${k + 1}/${qs.length} (${esc(q)})`;
+      try {
+        if (!sets[q]) sets[q] = { list: await commons(q), i: 0 };
+        const set = sets[q];
+        while (set.i < set.list.length && !(await loadImg(set.list[set.i].url))) set.i++;
+        const c = set.list[set.i];
+        if (c) { got++; plan.slides.forEach(s => { if (s.photoQ === q && !(s.photo && s.photo.own)) s.photo = c; }); }
+      } catch (e) { failed++; }
+    }
+    if (out) out.textContent = got ? `✅ ${got} photo mili — har line ke neeche dekho, pasand na aaye to 🔄 Doosri ya 📷 Apni` : failed ? "⚠️ Photo nahi mil payi (internet?) — 📷 Apni photo laga sakte ho" : "Is topic ki free photo nahi mili — 📷 Apni photo laga sakte ho";
+    refreshPhotoRows();
+  }
+  function photoAt(idx) {
+    if (!plan || plan.noPhotos || !plan.slides) return null;
+    for (let i = Math.min(idx, plan.slides.length - 1); i >= 0; i--) { const p = plan.slides[i].photo; if (p) return imgs[p.url] || null; }
+    for (const s of plan.slides) if (s.photo) return imgs[s.photo.url] || null; // title: first photo
+    return null;
+  }
+  function photoBg(ctx, w, h, img, tsec, idx) {
+    const z = 1.06 + 0.04 * Math.sin(tsec * 0.15 + idx), r = Math.max(w / img.naturalWidth, h / img.naturalHeight) * z;
+    const dw = img.naturalWidth * r, dh = img.naturalHeight * r;
+    ctx.drawImage(img, (w - dw) / 2 + Math.sin(tsec * 0.1) * 12, (h - dh) / 2, dw, dh);
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "rgba(0,0,0,.45)"); g.addColorStop(0.35, "rgba(0,0,0,.08)"); g.addColorStop(0.65, "rgba(0,0,0,.15)"); g.addColorStop(1, "rgba(0,0,0,.65)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  }
+  // small label instead of the big board, so the photo stays visible
+  function label(ctx, w, h, text, emoji, sc, F) {
+    const v = w < h, t = (emoji ? emoji + "  " : "") + (text || "");
+    if (!t.trim()) return;
+    ctx.font = `bold ${(v ? 40 : 34) * sc}px ${F}`; ctx.textAlign = "center";
+    const tw = Math.min(w - 40 * sc, ctx.measureText(t).width + 50 * sc), y = (v ? 120 : 70) * sc;
+    ctx.fillStyle = "rgba(20,30,40,.72)"; rr(ctx, (w - tw) / 2, y, tw, (v ? 64 : 56) * sc, 18 * sc); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.fillText(t, w / 2, y + (v ? 44 : 39) * sc, w - 60 * sc);
+  }
+
   function cartoonFrame(ctx, w, h, kind, s, prog, idx, total, channel, tsec, mouth) {
     const sc = Math.min(w, h) / 720, F = "'Noto Sans Devanagari','Noto Sans',sans-serif", v = w < h;
-    const fy = cartoonScene(ctx, w, h, tsec);
+    const ph = photoAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
+    if (ph) photoBg(ctx, w, h, ph, tsec, idx); else cartoonScene(ctx, w, h, tsec);
+    const board = ph ? label : boardBig;
     const names = (plan && plan.names) || (GL() ? { A: "Leo", B: "Priya" } : { A: "Pappu", B: "Chacha" });
     const who = kind === "slide" ? s.who : null;
     if (kind === "slide") board(ctx, w, h, s.heading, s.emoji, sc, F);
@@ -749,7 +858,7 @@ const Video = (() => {
     });
     if (kind === "slide") subtitle(ctx, w, h, s.narration, prog, sc, F, v ? h * 0.48 : h * 0.5, who === "A" ? "#ffd166" : "#8fe3ff");
     if (kind === "slide") { ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(0, h - 8 * sc, w, 8 * sc); ctx.fillStyle = "#e07a2e"; ctx.fillRect(0, h - 8 * sc, w * ((idx + prog) / total), 8 * sc); }
-    overlay(ctx, w, h, channel, sc, F, CAT() !== "how");
+    overlay(ctx, w, h, channel, sc, F, !ph && CAT() !== "how");
   }
   // mouth movement from the real voice loudness (30 values per second)
   function envelope(buf) {
@@ -780,7 +889,7 @@ const Video = (() => {
     const c = document.createElement("canvas"); c.width = 1280; c.height = 720;
     const x = c.getContext("2d");
     if (plan.style === "cartoon") {
-      cartoonScene(x, 1280, 720, 0);
+      const ph = photoAt(0); if (ph) photoBg(x, 1280, 720, ph, 0, 0); else cartoonScene(x, 1280, 720, 0);
       drawChar(x, 190, 740, 1.35, "A", 0.7, false, true, 0.3, 1); drawChar(x, 1090, 740, 1.35, "B", 0, false, false, 0, -1);
       x.fillStyle = "rgba(0,0,0,.55)"; x.fillRect(330, 150, 620, 400);
       x.fillStyle = "#ffd166"; x.textAlign = "center"; x.font = "bold 78px 'Noto Sans Devanagari',sans-serif";
@@ -822,6 +931,7 @@ const Video = (() => {
         const bin = atob(r.b64), arr = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
         bufs.push(await ac.decodeAudioData(arr.buffer));
       }
+      if (cartoon) { say("🖼️ Photos load ho rahi hain…"); await Promise.all(plan.slides.filter(x => x.photo).map(x => loadImg(x.photo.url))); }
       const low = !!S.get("vLow", (navigator.deviceMemory || 8) <= 4), fps = low ? 24 : 30;
       const w = plan.short ? (low ? 540 : 720) : (low ? 960 : W), h = plan.short ? (low ? 960 : 1280) : (low ? 540 : H);
       const c = document.createElement("canvas"); c.width = w; c.height = h;
@@ -887,5 +997,5 @@ const Video = (() => {
     busy = false; if (IS_APP) window.Native.keepScreenOn(false);
   }
 
-  return { render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); return cartoonFrame(ctx, w, h, "slide", s, 0.5, 2, 8, "Kanoon Aasaan", tsec, m); } };
+  return { render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, "slide", s, 0.5, 2, 8, "Kanoon Aasaan", tsec, m); } };
 })();
