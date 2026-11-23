@@ -436,7 +436,7 @@ const Video = (() => {
       savePlan();
       drawEditor();
       if (plan.style === "cartoon") findPhotos();
-    } catch (e) { $("#vmsg").textContent = "❌ " + (e.message || "Script nahi bani — dobara try karo"); }
+    } catch (e) { $("#vmsg").innerHTML = "❌ " + esc(e.message || "Script nahi bani — dobara try karo") + (e.tries && e.tries.length ? `<br><span class="muted" style="font-size:11px">${esc(e.tries.join(" · "))}</span>` : ""); }
   }
 
   function drawEditor() {
