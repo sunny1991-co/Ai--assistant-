@@ -18,7 +18,15 @@ const Video = (() => {
   }
 
   // 🤖 Human-like AI voice (Gemini TTS, free tier). Returns an ArrayBuffer (WAV) or throws.
+  const ttsCache = new Map();
   async function aiVoice(text, voice) {
+    const ck = voice + "|" + text;
+    if (ttsCache.has(ck)) return ttsCache.get(ck).slice(0);
+    const buf = await aiVoiceRaw(text, voice);
+    ttsCache.set(ck, buf.slice(0));
+    return buf;
+  }
+  async function aiVoiceRaw(text, voice) {
     const body = { contents: [{ role: "user", parts: [{ text: "Aise bolo jaise ek samajhdaar Bharatiya bada bhai apne dost ko chai pe samjha raha ho — aaram se, garmjoshi se, sawaal pe awaaz upar, zaroori baat pe zor, comma aur full stop pe halka ruk kar. News reader ya robot jaisa nahi. Ye Hindi bolo:\n" + text }] }],
       generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
     const ok = S.get("ttsModel", "");
@@ -191,7 +199,7 @@ const Video = (() => {
         <label class="field">Awaaz (jo slide aapne record nahi ki)<select id="vvoice">
           ${AI_VOICES.map(([k, t]) => `<option value="ai:${k}" ${S.get("vVoice", "ai:Charon") === "ai:" + k ? "selected" : ""}>🤖 AI insaan jaisi — ${t}</option>`).join("")}
           <option value="phone" ${S.get("vVoice", "") === "phone" ? "selected" : ""}>📱 Phone ki Indian awaaz</option></select></label>`}
-        <button class="btn" id="vtest">▶️ Awaaz suno</button>
+        <button class="btn${p.style === "cartoon" ? " primary" : ""}" id="vtest">${p.style === "cartoon" ? "▶️ Pehle namoona dekho-suno (shuru ki 3 line)" : "▶️ Awaaz suno"}</button>
         <label class="row small"><input type="checkbox" id="vmusic" ${S.get("vMusic", true) ? "checked" : ""}> 🎵 Peeche halka music (apna banaya, copyright-free)</label>
         ${p.style === "cartoon" ? "" : `<div class="banner small">💡 Video insaan jaisi lage, iske liye: 1) har slide pe <b>apni awaaz</b> record karo (sabse bada fark), 2) <b>apni kheenchi photo</b> lagao (court, thana, kagaz, apna haath — kisi ka chehra nahi), 3) script ko apne shabdon mein thoda badlo.</div>`}
         <button class="btn" id="vcheck" style="margin-top:8px">🔍 AI se script jaanchwao</button>
@@ -220,7 +228,8 @@ const Video = (() => {
       $("#vva").onchange = e => { S.set("vVoiceA", e.target.value); $("#vvoice").innerHTML = `<option value="ai:${e.target.value}"></option>`; };
       $("#vvb").onchange = e => S.set("vVoiceB", e.target.value);
     }
-    $("#vtest").onclick = async () => {
+    if (p.style === "cartoon") { $("#vtest").onclick = preview; }
+    else $("#vtest").onclick = async () => {
       const v = $("#vvoice").value, t = (plan.slides[0] && plan.slides[0].narration) || "नमस्ते! आज हम एक ज़रूरी कानूनी सवाल समझेंगे।";
       try {
         if (v === "phone") { Voice.speak(t); return; }
@@ -261,6 +270,59 @@ const Video = (() => {
       });
     }
     out.gain.setValueAtTime(0.05, start + Math.max(0, dur - 2)); out.gain.linearRampToValueAtTime(0, start + dur);
+  }
+
+  // ▶️ live preview of the first lines: real voices + moving cartoon, nothing saved
+  async function lineAudio(ac, i) {
+    if (voices[i]) return ac.decodeAudioData(await voices[i].blob.arrayBuffer());
+    const sl = plan.slides[i], text = sl.narration || sl.heading || " ";
+    const vv = plan.style === "cartoon" ? "ai:" + S.get(sl.who === "B" ? "vVoiceB" : "vVoiceA", sl.who === "B" ? "Charon" : "Puck") : S.get("vVoice", "ai:Charon");
+    if (vv.startsWith("ai:")) {
+      try { return await ac.decodeAudioData(await aiVoice(text, vv.slice(3))); }
+      catch (e) { if (!IS_APP) throw e; }
+    }
+    const r = await nativeCall("speakToFile", text, "hi-IN", S.get("voiceRate", 1));
+    if (r.error) throw new Error(r.error);
+    const bin = atob(r.b64), arr = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+    return ac.decodeAudioData(arr.buffer);
+  }
+  async function preview() {
+    readEdits();
+    const v = plan.short, cw = v ? 360 : 640, chh = v ? 640 : 360;
+    openSheet(`<h3>▶️ Namoona</h3><canvas id="pvc" width="${cw}" height="${chh}" style="width:100%;max-height:60vh;object-fit:contain;border-radius:10px;background:#000"></canvas>
+      <p class="small" id="pvs"><span class="dots"><i></i><i></i><i></i></span> Awaaz ban rahi hai…</p>
+      <div class="row"><button class="btn" id="pvx">⏹ Band karo</button></div>`, root => {
+      const cv = $("#pvc", root), ctx = cv.getContext("2d"), st = $("#pvs", root);
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      let stop = false; const end = () => { stop = true; try { ac.close(); } catch (e) {} };
+      $("#pvx", root).onclick = () => { end(); closeSheet(); };
+      cartoonFrame(ctx, cw, chh, "title", plan.title, 0, 0, 1, S.get("vChannel", ""), 0, 0);
+      (async () => {
+        const n = Math.min(3, plan.slides.length), segs = [];
+        try {
+          for (let i = 0; i < n && !stop; i++) {
+            st.innerHTML = `<span class="dots"><i></i><i></i><i></i></span> Awaaz ban rahi hai… ${i + 1}/${n}`;
+            const b = await lineAudio(ac, i); segs.push({ i, buf: b, env: envelope(b) });
+          }
+        } catch (e) { st.textContent = "❌ " + (e.message || "Awaaz nahi bani") + " — ⚙️ Settings mein Gemini key dekho"; return; }
+        if (stop) return;
+        let t = 0; segs.forEach(s => { s.start = t; t += s.buf.duration + 0.3; }); const total = t;
+        const t0 = ac.currentTime + 0.2;
+        if (S.get("vMusic", true)) music(ac, ac.destination, t0, total);
+        segs.forEach(s => { const src = ac.createBufferSource(); src.buffer = s.buf; src.connect(ac.destination); src.start(t0 + s.start); });
+        st.textContent = "🔊 Awaaz chalu hai — pasand na aaye to upar awaaz badal ke dobara dekho";
+        const tick = () => {
+          if (stop || !document.contains(cv)) { end(); return; }
+          const el = ac.currentTime - t0;
+          if (el >= total) { st.textContent = "✅ Namoona khatam. Theek laga to neeche tick lagao aur 🎬 Video banao (ye awaaz dobara use hogi)."; return; }
+          const s = segs.find(x => el >= x.start && el < x.start + x.buf.duration + 0.3) || segs[0];
+          const m = el >= s.start ? (s.env[Math.floor((el - s.start) * 30)] || 0) : 0;
+          cartoonFrame(ctx, cw, chh, "slide", plan.slides[s.i], Math.max(0, Math.min(1, (el - s.start) / s.buf.duration)), s.i, plan.slides.length, S.get("vChannel", ""), Math.max(0, el), m);
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      })();
+    });
   }
 
   // second AI pass: look for risky claims before making the video
