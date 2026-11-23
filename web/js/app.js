@@ -60,7 +60,7 @@ const App = (() => {
     $("#btn-new").onclick = () => { go("chat"); Chat.newChat(); };
     $("#btn-history").onclick = () => Chat.history();
     window.addEventListener("hashchange", () => { const v = location.hash.slice(1); if (v && v !== current) go(v); });
-    go(location.hash.slice(1) || "chat");
+    go(location.hash.slice(1) || (S.get("vMaking", null) ? "video" : "chat"));
     setTimeout(() => checkUpdate(false), 3000);
   }
 
