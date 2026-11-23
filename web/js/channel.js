@@ -60,7 +60,7 @@ const Channel = (() => {
           <li>Neeche paste karo + apna channel <b>@handle</b> likho.</li></ol>
           <button class="btn" id="ytopen">🌐 Google Cloud kholo</button>` : `<p class="small">✅ Juda hua: <b>${esc(S.get("ytHandle", ""))}</b></p>`}
         <label class="field">YouTube API key<input id="ytk" type="password" autocomplete="off" placeholder="${key() ? "✅ laga hua (badalna ho to naya paste karo)" : "AIza…"}"></label>
-        <label class="field">Channel @handle<input id="yth" value="${esc(S.get("ytHandle", ""))}" placeholder="@KanoonAasaan"></label>
+        <label class="field">Channel @handle<input id="yth" value="${esc(S.get("ytHandle", ""))}" placeholder="@handle ya channel ka link paste karo"></label>
         <button class="btn primary" id="ytsave">💾 Save + check</button> <span id="ytmsg" class="small"></span>
         <p class="muted small">Sirf public ginti padhta hai (views, likes, subscribers). Channel mein koi badlav ya upload nahi karta. Key sirf is phone mein.</p>
       </div>
@@ -68,7 +68,12 @@ const Channel = (() => {
     const o = $("#ytopen"); if (o) o.onclick = () => openLink("https://console.cloud.google.com/apis/library/youtube.googleapis.com");
     $("#ytsave").onclick = async () => {
       const k = $("#ytk").value.replace(/\s/g, ""); if (k) S.set("ytKey", k);
-      S.set("ytHandle", $("#yth").value.trim());
+      // accept a pasted channel link too: youtube.com/@name or youtube.com/channel/UC…
+      let h = $("#yth").value.trim();
+      const m = h.match(/\/channel\/(UC[\w-]{20,})/) || h.match(/(@[\w.-]+)/);
+      if (m) h = m[1];
+      if (h !== S.get("ytHandle", "")) { S.del("ytLast"); S.del("ytHist"); } // different channel → don't mix old numbers
+      S.set("ytHandle", h);
       $("#ytmsg").textContent = "⏳ Check ho raha hai…";
       try { await refresh(); render(); } catch (e) { $("#ytmsg").textContent = "❌ " + e.message; }
     };
