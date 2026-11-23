@@ -207,6 +207,25 @@ const G = (() => {
     return { text, sources: items.slice(0, 8).map(x => ({ uri: x.uri, title: x.title.slice(0, 90) })) };
   }
 
+  // Real YouTube numbers (owner's own free YouTube key from 📊 Mera channel): what is most watched right now.
+  const TREND_Q = /youtube|you tube|trend|viral|popular|chal raha|chal rahi|kya chal|channel|shorts|video|यूट्यूब|ट्रेंड|वायरल|चल रहा|चल रही|चैनल|वीडियो|ग्लोबल|global|videsh|विदेश/i;
+  async function ytTrends() {
+    const k = S.get("ytKey", ""); if (!k) return null;
+    const get = async url => {
+      if (IS_APP) { const r = await nativeCall("http", "GET", url, "{}", ""); if (r.status !== 200) throw new Error("yt " + r.status); return JSON.parse(r.text); }
+      const r = await fetch(url); if (!r.ok) throw new Error("yt " + r.status); return r.json();
+    };
+    const lakh = n => (n >= 1e7 ? (n / 1e7).toFixed(1) + " crore" : n >= 1e5 ? (n / 1e5).toFixed(1) + " lakh" : Math.round(n / 1000) + "K");
+    const parts = [];
+    for (const [rc, label] of [["IN", "Bharat"], ["US", "America"], ["GB", "UK"]]) {
+      try {
+        const j = await get("https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&chart=mostPopular&maxResults=12&regionCode=" + rc + "&key=" + encodeURIComponent(k));
+        parts.push(`${label} mein abhi sabse zyada dekhe ja rahe YouTube videos:\n` + (j.items || []).map((v, i) => `${i + 1}. ${v.snippet.title} — ${v.snippet.channelTitle} — ${lakh(+(v.statistics.viewCount || 0))} views (${String(v.snippet.publishedAt).slice(0, 10)})`).join("\n"));
+      } catch (e) { /* skip this country */ }
+    }
+    return parts.length ? "YOUTUBE KA ASLI TAAZA DATA (" + new Date().toLocaleString("en-IN") + "):\n" + parts.join("\n\n") + "\n\nIs data se pattern nikaalo (kis tarah ke vishay/format chal rahe hain) aur user ke channel ke liye kaam ki salah do." : null;
+  }
+
   // Main call: contents = [{role, parts}], opts = {web, system, signal, onPart, onStatus}
   async function ask(contents, opts) {
     if (!key()) throw new ApiError(401, "Pehle ⚙️ Settings mein apni free Gemini key daalo");
@@ -214,7 +233,14 @@ const G = (() => {
     const base = { system_instruction: { parts: [{ text: opts.system }] }, contents,
       generationConfig: { temperature: 0.6, ...(opts.json ? { responseMimeType: "application/json", maxOutputTokens: 16384 } : {}) } };
     bumpUsage();
-    let note = "";
+    let note = "", ytUsed = false;
+    if (opts.web && TREND_Q.test(opts.query || "")) { // add real YouTube numbers when the question is about trends/channels
+      try {
+        if (opts.onStatus) opts.onStatus("🌐 YouTube ka taaza data dekh raha hoon…");
+        const yt = await ytTrends();
+        if (yt) { const last = contents[contents.length - 1]; contents = contents.slice(0, -1).concat([{ role: last.role, parts: last.parts.concat([{ text: yt }]) }]); base.contents = contents; ytUsed = true; }
+      } catch (e) { /* no YouTube data, carry on */ }
+    }
     if (opts.web) {
       const ok = S.get("searchOk", "");
       const order = ok && m.search.includes(ok) ? [ok, ...m.search.filter(x => x !== ok)] : m.search;
@@ -240,7 +266,7 @@ const G = (() => {
         contents = contents.slice(0, -1).concat([{ role: last.role, parts: last.parts.concat([{ text: ctx.text }]) }]);
         base.contents = contents;
         opts.planSources = ctx.sources;
-      } else note = "🌐 Web search abhi nahi chala — bina search ke jawab diya hai";
+      } else note = ytUsed ? "📺 YouTube ka taaza data dekh kar jawab diya" : "🌐 Web search abhi nahi chala — bina search ke jawab diya hai";
     }
     const chain = [...new Set([m.chat, m.lite, ...(m.search || [])])].filter(Boolean);
     let lastErr = null;
