@@ -381,6 +381,17 @@ const Video = (() => {
 
   // ---------- cartoon (two original characters) ----------
   function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  // cartoon hand: palm + 4 fingers + thumb, pointing along the arm
+  function hand(ctx, x, y, dir, s, skin, line, side, wig) {
+    const F = [[-0.5, 13], [-0.17, 16], [0.17, 15], [0.5, 12]].map(([a, l]) => [dir + a + wig, l * s]);
+    const th = [dir - side * 1.25, 11 * s];
+    const seg = ([a, l], from) => { ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * from, y + Math.sin(a) * from); ctx.lineTo(x + Math.cos(a) * (10 * s + l), y + Math.sin(a) * (10 * s + l)); ctx.stroke(); };
+    ctx.lineCap = "round";
+    ctx.strokeStyle = line; ctx.lineWidth = 9.5 * s; [...F, th].forEach(f => seg(f, 4 * s));
+    ctx.fillStyle = skin; ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.arc(x, y, 13 * s, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = skin; ctx.lineWidth = 5 * s; [...F, th].forEach(f => seg(f, 6 * s));
+    ctx.strokeStyle = line;
+  }
   // who: "A" young man, "B" elder; mouth 0..1 (open), face: +1 looks right, -1 looks left
   function drawChar(ctx, x, y, s, who, mouth, blink, talking, tsec, face) {
     const young = who === "A";
@@ -399,7 +410,7 @@ const Video = (() => {
       const ang = up ? -0.9 + g : 0.25;
       const sx = side * 70 * s, sy = -120 * s, ex = sx + side * Math.cos(ang) * 70 * s * (up ? 0.9 : 0.3), ey = sy + (up ? Math.sin(ang) * 70 * s : 95 * s);
       ctx.strokeStyle = shirt; ctx.lineWidth = 26 * s; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-      ctx.fillStyle = skin; ctx.lineWidth = 3 * s; ctx.strokeStyle = line; ctx.beginPath(); ctx.arc(ex, ey, 14 * s, 0, 7); ctx.fill(); ctx.stroke();
+      hand(ctx, ex, ey, Math.atan2(ey - sy, ex - sx), s, skin, line, side, up ? Math.sin(tsec * 7) * 0.12 : 0);
     });
     // neck + head
     ctx.fillStyle = skin; ctx.fillRect(-18 * s, -172 * s, 36 * s, 30 * s);
