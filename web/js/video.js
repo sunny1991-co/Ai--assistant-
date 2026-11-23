@@ -1172,7 +1172,7 @@ const Video = (() => {
       const ctx = c.getContext("2d");
       const dest = ac.createMediaStreamDestination();
       const stream = new MediaStream([...c.captureStream(fps).getVideoTracks(), ...dest.stream.getAudioTracks()]);
-      const mime = ["video/mp4;codecs=avc1,mp4a", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+      const mime = ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1,mp4a", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
       if (!mime) throw new Error("Is phone mein video recording nahi chalti");
       const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: low ? 1200000 : 2200000 });
       const ext = mime.startsWith("video/mp4") ? "mp4" : "webm", base = mime.split(";")[0];
@@ -1180,7 +1180,7 @@ const Video = (() => {
       // phone: write each second's piece straight to storage, so the whole video never sits in memory
       const chunks = []; let wq = Promise.resolve(), size = 0, firstW = true, wfail = false, outUri = "";
       // FileReader does the base64 work natively, so drawing doesn't stutter every second
-      const blobB64 = bl => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1] || ""); fr.onerror = () => no(fr.error); fr.readAsDataURL(bl); });
+      const blobB64 = bl => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => { const u = String(fr.result), k = u.indexOf(";base64,"); ok(k < 0 ? "" : u.slice(k + 8)); /* mime can contain commas: avc1,mp4a */ }; fr.onerror = () => no(fr.error); fr.readAsDataURL(bl); });
       const put = async (b64s, last) => { const f = firstW; firstW = false; const r = await nativeCall("saveChunk", name, base, b64s, f, last); if (!r.ok) wfail = true; if (r.uri) outUri = r.uri; };
       rec.ondataavailable = e => {
         if (!e.data.size) return; size += e.data.size;
