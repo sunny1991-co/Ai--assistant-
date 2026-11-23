@@ -51,7 +51,7 @@ const G = (() => {
       if (!r.nextPageToken) break;
       page = r.nextPageToken;
     }
-    const dead = S.get("deadModels", {}); names = names.filter(n => !(dead[n] && Date.now() - dead[n] < 7 * 86400000)); // gave 404 lately
+    const dead = S.get("deadModels", {}); names = names.filter(n => !(dead[n] && Date.now() - dead[n] < (dead[n + "#d"] || 7 * 86400000))); // gave 404 / no quota lately
     const bad = /(preview|exp|tts|image|live|audio|embed|robotic|thinking|computer|vision|native|learnlm|-\d{3}$)/i;
     const ver = n => { const m = n.match(/^gemini-(\d+(?:\.\d+)?)-flash(-lite)?$/); return m ? parseFloat(m[1]) : -1; };
     const flash = names.filter(n => !bad.test(n) && /^gemini-[\d.]+-flash$/.test(n)).sort((a, b) => ver(b) - ver(a));
@@ -293,22 +293,38 @@ const G = (() => {
         opts.planSources = ctx.sources;
       } else note = ytUsed ? "📺 YouTube ka taaza data dekh kar jawab diya" : "🌐 Web search abhi nahi chala — bina search ke jawab diya hai";
     }
-    const chain = [...new Set([m.chat, m.lite, ...(m.search || [])])].filter(Boolean);
+    const live = n => { const d = S.get("deadModels", {}); return !(d[n] && Date.now() - d[n] < (d[n + "#d"] || 7 * 86400000)); };
+    let chain = [...new Set([m.chat, m.lite, ...(m.search || [])])].filter(Boolean).filter(live);
+    if (!chain.length) chain = [m.chat];
     let lastErr = null; const tries = [];
-    for (let i = 0; i < chain.length; i++) {
-      try {
-        const r = await attempt(chain[i], base, opts);
-        r.note = [note, i ? "Bada model busy tha, doosre model se jawab" : ""].filter(Boolean).join(" · ");
-        if (opts.planSources && !(r.sources || []).length) r.sources = opts.planSources;
-        return r;
-      } catch (e) {
-        lastErr = e; tries.push(chain[i] + ": " + (e.status || "?") + (e.raw ? " " + String(e.raw).replace(/\s+/g, " ").slice(0, 80) : ""));
-        e.tries = tries;
-        if (fatal(e)) throw e;
-        if (e.status === 404) { const b = S.get("deadModels", {}); b[chain[i]] = Date.now(); S.set("deadModels", b); S.del("models"); continue; }
-        if (!busyErr(e) && e.status !== 429) throw e;
-        if (opts.onStatus) opts.onStatus("⏳ Doosre model se try kar raha hoon…");
+    const rounds = opts.json ? 3 : 1; // video scripts: if every model is busy, wait and try again
+    for (let round = 0; round < rounds; round++) {
+      if (round) {
+        const secs = round * 30;
+        for (let s2 = secs; s2 > 0; s2--) { if (opts.onStatus) opts.onStatus(`⏳ Google ke sab model abhi busy hain — ${s2} second baad dobara try (${round}/${rounds - 1})…`); await wait(1000); }
+        tries.length = 0;
       }
+      let allBusy = true;
+      for (let i = 0; i < chain.length; i++) {
+        try {
+          const r = await attempt(chain[i], base, opts);
+          r.note = [note, i || round ? "Bada model busy tha, doosre model se jawab" : ""].filter(Boolean).join(" · ");
+          if (opts.planSources && !(r.sources || []).length) r.sources = opts.planSources;
+          return r;
+        } catch (e) {
+          lastErr = e; tries.push(chain[i] + ": " + (e.status || "?") + (e.raw ? " " + String(e.raw).replace(/\s+/g, " ").slice(0, 80) : ""));
+          e.tries = tries;
+          if (fatal(e)) throw e;
+          const mark = ms => { const d = S.get("deadModels", {}); d[chain[i]] = Date.now(); d[chain[i] + "#d"] = ms; S.set("deadModels", d); };
+          if (e.status === 404) { mark(7 * 86400000); S.del("models"); allBusy = false; continue; }
+          if (e.status === 429 && !busyErr(e)) { mark(12 * 3600000); allBusy = false; continue; } // no free quota on this model today
+          if (!busyErr(e)) throw e;
+          if (opts.onStatus) opts.onStatus("⏳ Doosre model se try kar raha hoon…");
+        }
+      }
+      chain = chain.filter(live);
+      if (!allBusy && !chain.length) break;
+      if (!chain.length) break;
     }
     throw lastErr || new ApiError(503, friendly(503));
   }
