@@ -2,6 +2,8 @@ package in.sahayak.ai;
 
 import android.Manifest;
 import android.content.ClipData;
+import android.content.ContentUris;
+import android.database.Cursor;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -34,6 +36,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.webkit.WebViewAssetLoader;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -257,6 +260,51 @@ public class MainActivity extends FragmentActivity {
     }
 
     // ---------- helpers ----------
+    /** Move a finished file where the phone can find it: videos → Movies/Sahayak (Gallery), pictures → Pictures/Sahayak. */
+    private String publish(File tmp, String safe, String mime) throws Exception {
+        if (Build.VERSION.SDK_INT >= 29) {
+            Uri coll; String dir;
+            if (mime.startsWith("video/")) { coll = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY); dir = Environment.DIRECTORY_MOVIES + "/Sahayak"; }
+            else if (mime.startsWith("image/")) { coll = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY); dir = Environment.DIRECTORY_PICTURES + "/Sahayak"; }
+            else { coll = MediaStore.Downloads.EXTERNAL_CONTENT_URI; dir = Environment.DIRECTORY_DOWNLOADS + "/Sahayak"; }
+            ContentValues cv = new ContentValues();
+            cv.put(MediaStore.MediaColumns.DISPLAY_NAME, safe);
+            cv.put(MediaStore.MediaColumns.MIME_TYPE, mime);
+            cv.put(MediaStore.MediaColumns.RELATIVE_PATH, dir);
+            cv.put(MediaStore.MediaColumns.IS_PENDING, 1);
+            Uri u = getContentResolver().insert(coll, cv);
+            if (u == null) return null;
+            try (OutputStream os = getContentResolver().openOutputStream(u); InputStream in = new java.io.FileInputStream(tmp)) {
+                byte[] buf = new byte[65536]; int n; while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+            }
+            ContentValues done = new ContentValues();
+            done.put(MediaStore.MediaColumns.IS_PENDING, 0);
+            getContentResolver().update(u, done, null, null);
+            return u.toString();
+        }
+        File dir = new File(getExternalFilesDir(mime.startsWith("video/") ? Environment.DIRECTORY_MOVIES : mime.startsWith("image/") ? Environment.DIRECTORY_PICTURES : Environment.DIRECTORY_DOWNLOADS), "Sahayak");
+        if (!dir.exists() && !dir.mkdirs()) return null;
+        File out = new File(dir, safe);
+        try (OutputStream os = new FileOutputStream(out); InputStream in = new java.io.FileInputStream(tmp)) {
+            byte[] buf = new byte[65536]; int n; while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+        }
+        return androidx.core.content.FileProvider.getUriForFile(this, "in.sahayak.ai.files", out).toString();
+    }
+
+    private void addRows(JSONArray arr, Uri coll, String pathLike) throws Exception {
+        String[] proj = {MediaStore.MediaColumns._ID, MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.DATE_ADDED, MediaStore.MediaColumns.MIME_TYPE};
+        try (Cursor c = getContentResolver().query(coll, proj,
+                MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ? AND " + MediaStore.MediaColumns.MIME_TYPE + " LIKE 'video/%'",
+                new String[]{pathLike}, MediaStore.MediaColumns.DATE_ADDED + " DESC")) {
+            if (c == null) return;
+            while (c.moveToNext()) {
+                JSONObject r = new JSONObject();
+                r.put("uri", ContentUris.withAppendedId(coll, c.getLong(0)).toString());
+                r.put("name", c.getString(1)); r.put("size", c.getLong(2)); r.put("date", c.getLong(3)); r.put("mime", c.getString(4));
+                arr.put(r);
+            }
+        }
+    }
     private void cb(String id, JSONObject o) {
         final String js = "window.NativeCb(" + JSONObject.quote(id) + "," + o.toString() + ")";
         runOnUiThread(() -> web.evaluateJavascript(js, null));
@@ -444,24 +492,72 @@ public class MainActivity extends FragmentActivity {
                     File tmp = new File(getCacheDir(), "out_" + safe);
                     try (OutputStream os = new FileOutputStream(tmp, !first)) { os.write(Base64.decode(b64, Base64.DEFAULT)); }
                     if (last) {
-                        boolean ok = false;
-                        if (Build.VERSION.SDK_INT >= 29) {
-                            ContentValues cv = new ContentValues();
-                            cv.put(MediaStore.MediaColumns.DISPLAY_NAME, safe);
-                            cv.put(MediaStore.MediaColumns.MIME_TYPE, mime);
-                            cv.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Sahayak");
-                            Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
-                            if (u != null) try (OutputStream os = getContentResolver().openOutputStream(u); InputStream in = new java.io.FileInputStream(tmp)) {
-                                byte[] buf = new byte[65536]; int n; while ((n = in.read(buf)) > 0) os.write(buf, 0, n); ok = true; }
-                        } else {
-                            File dir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "Sahayak");
-                            if (dir.exists() || dir.mkdirs()) ok = tmp.renameTo(new File(dir, safe));
-                        }
+                        String uri = publish(tmp, safe, mime);
                         tmp.delete();
-                        o.put("ok", ok);
+                        o.put("ok", uri != null);
+                        if (uri != null) o.put("uri", uri);
                     } else o.put("ok", true);
                 } catch (Exception e) {
                     try { o.put("ok", false); } catch (Exception ignored) { }
+                }
+                cb(id, o);
+            }).start();
+        }
+
+        /** Play a saved video/photo in the phone's own player. */
+        @JavascriptInterface
+        public void openMedia(String uri, String mime) {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(uri), mime)
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(i);
+                } catch (Exception e) { Toast.makeText(MainActivity.this, "Kholne wala app nahi mila", Toast.LENGTH_SHORT).show(); }
+            });
+        }
+
+        /** Send a saved video to YouTube / WhatsApp / Drive (phone's share sheet). */
+        @JavascriptInterface
+        public void shareMedia(String uri, String mime) {
+            runOnUiThread(() -> {
+                try {
+                    Uri u = Uri.parse(uri);
+                    Intent i = new Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, u)
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    i.setClipData(ClipData.newRawUri("", u));
+                    startActivity(Intent.createChooser(i, "YouTube / WhatsApp par bhejo"));
+                } catch (Exception e) { Toast.makeText(MainActivity.this, "Bhej nahi paya", Toast.LENGTH_SHORT).show(); }
+            });
+        }
+
+        /** Videos this app made (new: Movies/Sahayak, old: Download/Sahayak), newest first. */
+        @JavascriptInterface
+        public void listMedia(String id) {
+            new Thread(() -> {
+                JSONObject o = new JSONObject();
+                JSONArray arr = new JSONArray();
+                try {
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        addRows(arr, MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), Environment.DIRECTORY_MOVIES + "/Sahayak%");
+                        addRows(arr, MediaStore.Downloads.EXTERNAL_CONTENT_URI, Environment.DIRECTORY_DOWNLOADS + "/Sahayak%");
+                    } else {
+                        for (String d : new String[]{Environment.DIRECTORY_MOVIES, Environment.DIRECTORY_DOWNLOADS}) {
+                            File[] fs = new File(getExternalFilesDir(d), "Sahayak").listFiles();
+                            if (fs == null) continue;
+                            for (File f : fs) {
+                                String n = f.getName();
+                                if (!n.endsWith(".mp4") && !n.endsWith(".webm")) continue;
+                                JSONObject r = new JSONObject();
+                                r.put("uri", androidx.core.content.FileProvider.getUriForFile(MainActivity.this, "in.sahayak.ai.files", f).toString());
+                                r.put("name", n); r.put("size", f.length()); r.put("date", f.lastModified() / 1000);
+                                r.put("mime", n.endsWith(".mp4") ? "video/mp4" : "video/webm");
+                                arr.put(r);
+                            }
+                        }
+                    }
+                    o.put("items", arr);
+                } catch (Exception e) {
+                    try { o.put("error", "List nahi mili"); } catch (Exception ignored) { }
                 }
                 cb(id, o);
             }).start();
