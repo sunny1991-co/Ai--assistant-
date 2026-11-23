@@ -109,8 +109,9 @@ const G = (() => {
     const url = API + "models/" + encodeURIComponent(model) + ":streamGenerateContent?alt=sse";
     const res = await http("POST", url, body, signal);
     if (!res.ok) { const t = await res.text(); throw new ApiError(res.status, friendly(res.status, t), t); }
-    let text = "", sources = [], finish = "";
+    let text = "", sources = [], finish = "", midErr = null;
     const take = obj => {
+      if (obj.error) { midErr = obj.error; return; } // Google can fail halfway through a stream
       const c = (obj.candidates || [])[0] || {};
       ((c.content || {}).parts || []).forEach(p => { if (p.text && !p.thought) text += p.text; });
       const gm = c.groundingMetadata;
@@ -135,10 +136,16 @@ const G = (() => {
           if (line.startsWith("data:")) { try { take(JSON.parse(line.slice(5))); } catch (e) { /* skip */ } }
         }
       }
+      const last = buf.trim(); // final event without a trailing newline
+      if (last.startsWith("data:")) { try { take(JSON.parse(last.slice(5))); } catch (e) { /* skip */ } }
     }
     const seen = new Set();
     sources = sources.filter(s => !seen.has(s.uri) && seen.add(s.uri));
     if (!text && finish === "SAFETY") throw new ApiError(400, friendly(400, "SAFETY"));
+    // Broken stream (error midway, or ended without a finish reason) for a JSON job: let the caller retry / use another model
+    const jsonJob = !!((body.generationConfig || {}).responseMimeType);
+    if (midErr && (jsonJob || !text)) { const code = +midErr.code || 503; throw new ApiError(code >= 400 ? code : 503, friendly(code >= 400 ? code : 503, JSON.stringify(midErr)), JSON.stringify(midErr)); }
+    if (jsonJob && !finish) throw new ApiError(503, friendly(503), "stream ended early");
     return { text, sources, model, finish };
   }
 
