@@ -6,12 +6,25 @@ const Video = (() => {
   const W = 1280, H = 720;
 
   const LENGTHS = { short: ["📱 Short (~45 sec, khada video)", 3], mid: ["▶️ 3 minute", 6], long: ["▶️ 6 minute", 10] };
+  const IDEAS = [
+    "Kya police bina warrant giraftar kar sakti hai?", "FIR na likhe to kya karein?", "Zero FIR kya hoti hai?",
+    "Bail kaise milti hai aur kitne din lagte hain?", "Anticipatory bail kab leni chahiye?",
+    "Talaaq ke baad patni ko gujara kitna milta hai?", "Beti ka pita ki property mein kitna hissa?",
+    "Will (vasiyat) na ho to property kaise bantegi?", "Kirayedar ghar khaali na kare to kya karein?",
+    "Cheque bounce ho gaya — kya karein?", "Online fraud ho gaya — paisa wapas kaise milega?",
+    "Consumer court mein shikayat kaise karein?", "RTI kaise lagayein?", "Police thane mein mahila ke adhikar",
+    "Giraftari ke baad 24 ghante ka niyam kya hai?", "Domestic violence mein mahila kya kar sakti hai?",
+    "Zameen pe kabza ho gaya — kya karein?", "Salary nahi mili — kahan shikayat karein?",
+    "Accident claim (MACT) kaise milta hai?", "Kya police phone check kar sakti hai?",
+  ];
 
   function render() {
     $("#view").innerHTML = `<div class="wrap"><h2 style="margin:6px 0">🎬 Video banao</h2>
-      <div class="banner">✅ Sirf apna original content. Doosron ki video/gaana/clip mat daalna — copyright strike aati hai. Court ke judgments samjhana theek hai (Copyright Act 52).</div>
+      <div class="banner">✅ Sirf apna original content (doosron ki video/gaana mat daalna). ⚖️ Peedit ka naam kabhi nahi, judge pe ilzaam nahi, parties "A aur B". Upload se pehle script ek baar khud padh lena.</div>
       <div class="card">
-        <label class="field">Vishay ya judgment ka saar<textarea id="vtopic" rows="5" placeholder="Jaise: Supreme Court ne kaha — 7 saal se kam saza wale case mein turant giraftari nahi (Arnesh Kumar)… ya poora saar paste karo"></textarea></label>
+        <label class="field">❓ Logon ka sawaal<input id="vq" placeholder="Jaise: Kya police bina warrant giraftar kar sakti hai?"></label>
+        <div class="toggles" style="flex-wrap:wrap">${IDEAS.map(q => `<button class="tg" data-idea="${esc(q)}">${esc(q)}</button>`).join("")}</div>
+        <label class="field">⚖️ Judgment / tathya (optional — Court app ka saar yahan paste karo)<textarea id="vtopic" rows="4" placeholder="Jaise: Arnesh Kumar vs State of Bihar (2014) — 7 saal se kam saza wale case mein turant giraftari nahi…"></textarea></label>
         <div class="row"><label class="field" style="flex:1">Lambai<select id="vlen">${Object.entries(LENGTHS).map(([k, v]) => `<option value="${k}" ${k === "mid" ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
         <label class="field" style="flex:1">Channel ka naam<input id="vch" value="${esc(S.get("vChannel", ""))}" placeholder="Jaise: Kanoon Aasaan"></label></div>
         <button class="btn primary wide" id="vplan">✍️ Script + slides banao</button>
@@ -19,12 +32,14 @@ const Video = (() => {
       </div>
       <div id="vedit"></div></div>`;
     $("#vplan").onclick = makePlan;
+    $$("[data-idea]").forEach(b => b.onclick = () => { $("#vq").value = b.dataset.idea; });
     if (plan) drawEditor();
   }
 
   async function makePlan() {
-    const topic = $("#vtopic").value.trim();
-    if (topic.length < 15) { toast("Vishay thoda detail mein likho"); return; }
+    const q = $("#vq").value.trim(), facts = $("#vtopic").value.trim();
+    if (q.length < 8 && facts.length < 15) { toast("Sawaal likho ya ek idea chuno"); return; }
+    const topic = "Sawaal: " + (q || "(tathya se banao)") + (facts ? "\nJudgment / tathya:\n" + facts : "");
     S.set("vChannel", $("#vch").value.trim());
     const len = $("#vlen").value, n = LENGTHS[len][1];
     $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script ban rahi hai…';
@@ -33,8 +48,9 @@ const Video = (() => {
         `YouTube video banana hai (Hindi, aam logon ke liye, aasaan bhasha). Vishay:\n${topic}\n\n` +
         `Sirf JSON do, aur kuch nahi:\n{"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + 'Ye kanooni salah nahi hai' disclaimer)","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)",` +
         `"slides":[{"heading":"(chhota, Hindi)","points":["(3 chhote point)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
-        `Theek ${n} slides. Pehli slide: dhyaan khinchne wali shuruaat. Aakhri: saar + 'video achhi lagi to like aur subscribe karein'. ` +
-        `Sirf wahi tathya jo vishay mein diye hain ya pakke aam gyaan ke hain; case naam/dhara apni taraf se mat banao.` }] }],
+        `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche), 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, jaankari hai' + 'achhi lagi to like aur subscribe'. ` +
+        `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
+        `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.` }] }],
         { system: "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, onPart: () => {} });
       const t = r.text.replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
       plan = JSON.parse(t);
