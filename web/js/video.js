@@ -721,16 +721,17 @@ const Video = (() => {
     ctx.strokeStyle = line;
   }
   // ---------- story places and costumes (all drawn here → free, no limits) ----------
-  const SCENES = { "": "🏠 Kamra (board)", thana: "🚓 Thana", court: "⚖️ Court", bazaar: "🧺 Bazaar", ghar: "🛋️ Ghar", gaon: "🌾 Gaon", sadak: "🛣️ Sadak / check-post", office: "💼 Office / bank", hospital: "🏥 Hospital", school: "🏫 School" };
+  const SCENES = { "": "🏠 Kamra (board)", thana: "🚓 Thana", court: "⚖️ Court", bazaar: "🧺 Bazaar", ghar: "🛋️ Ghar", gaon: "🌾 Gaon", sadak: "🛣️ Sadak / check-post", office: "💼 Office / bank", hospital: "🏥 Hospital", school: "🏫 School", car: "🚗 Gaadi mein safar", bike: "🛵 Bike par", walk: "🚶 Paidal", cycle: "🚲 Cycle par" };
+  const MOVING = new Set(["car", "bike", "walk", "cycle"]);
   const DRESSES = { "": "Apne kapde", police: "👮 Police", vakil: "⚖️ Vakil", judge: "👨‍⚖️ Judge", dukaandaar: "🧺 Garib dukaandaar", office: "👔 Office wala", doctor: "🩺 Doctor", kisaan: "🌾 Kisaan" };
   const DRESS = {
-    police: { shirt: "#c9ad72", chest: "police", hat: "police" },
-    vakil: { shirt: "#22222a", chest: "vakil" },
-    judge: { shirt: "#141418", chest: "judge" },
-    dukaandaar: { shirt: "#efe8d8", chest: "gamchha" },
-    office: { shirt: "#9cc3e6", chest: "tie" },
-    doctor: { shirt: "#f7f7f7", chest: "doctor" },
-    kisaan: { shirt: "#f4f1e6", chest: "kurta2", hat: "safa" },
+    police: { shirt: "#c9ad72", chest: "police", hat: "police", pants: "#b39558" },
+    vakil: { shirt: "#22222a", chest: "vakil", pants: "#1a1a20" },
+    judge: { shirt: "#141418", chest: "judge", pants: "#141418" },
+    dukaandaar: { shirt: "#efe8d8", chest: "gamchha", pants: "#f4efe2" },
+    office: { shirt: "#9cc3e6", chest: "tie", pants: "#2f3a4f" },
+    doctor: { shirt: "#f7f7f7", chest: "doctor", pants: "#3b4a66" },
+    kisaan: { shirt: "#f4f1e6", chest: "kurta2", hat: "safa", pants: "#f4f1e6" },
   };
   const SCN_LIST = () => Object.keys(SCENES).map(k => k || "room").join(" | ");
   const DRS_LIST = "none | " + Object.keys(DRESS).join(" | ");
@@ -805,6 +806,25 @@ const Video = (() => {
     const shirt = DR ? DR.shirt : L.shirt, skin = L.skin, line = "#2b2420";
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line; ctx.lineJoin = "round"; ctx.lineCap = "round";
     if (L.hair === "braid") { ctx.fillStyle = L.hc; ctx.beginPath(); ctx.ellipse(0, -215 * s, 76 * s, 92 * s, 0, 0, 7); ctx.fill(); }
+    if (P.legs) { // walking or pedalling legs (hip → knee → foot), drawn behind the shirt
+      const pants = (DRESS[P.dress] || {}).pants || L.pants || "#3b4a66";
+      [-1, 1].forEach(side => {
+        const hx = side * 32 * s, hy = -6 * s; let fx, fy2, kx, ky;
+        if (P.legs.mode === "walk") {
+          const a = Math.sin(P.legs.ph + (side > 0 ? Math.PI : 0)) * 0.42, b = Math.max(0, Math.sin(P.legs.ph + (side > 0 ? Math.PI : 0) + 1.2)) * 0.5;
+          kx = hx + Math.sin(a) * 60 * s; ky = hy + Math.cos(a) * 60 * s; fx = kx + Math.sin(a - b) * 60 * s; fy2 = ky + Math.cos(a - b) * 60 * s;
+        } else { // pedal: feet go round the crank, knees forward (IK)
+          const f = P.legs.feet[side > 0 ? 1 : 0]; fx = f.x * s; fy2 = f.y * s;
+          const dx = fx - hx, dy = fy2 - hy, d = Math.min(Math.hypot(dx, dy), 118 * s), base = Math.atan2(dy, dx), k = Math.acos(Math.max(-1, Math.min(1, d / (120 * s))));
+          kx = hx + Math.cos(base - k * P.legs.dir) * 60 * s; ky = hy + Math.sin(base - k * P.legs.dir) * 60 * s;
+        }
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.strokeStyle = line; ctx.lineWidth = 32 * s; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy2); ctx.stroke();
+        ctx.strokeStyle = pants; ctx.lineWidth = 25 * s; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy2); ctx.stroke();
+        ctx.fillStyle = "#3a2a20"; ctx.beginPath(); ctx.ellipse(fx + 8 * s, fy2 + 4 * s, 22 * s, 11 * s, 0, 0, 7); ctx.fill();
+      });
+      ctx.lineWidth = 4 * s;
+    }
     // body
     ctx.fillStyle = shirt; rr(ctx, -78 * s, -150 * s, 156 * s, 160 * s, 46 * s); ctx.fill(); ctx.stroke();
     if (chest === "police") {
@@ -1191,6 +1211,86 @@ const Video = (() => {
     ctx.fillStyle = "#fff"; ctx.fillText(t, w / 2, y + (v ? 44 : 39) * sc, w - 60 * sc);
   }
 
+  // ---------- travel scenes: scrolling road + vehicles (drawn every frame) ----------
+  function movingBg(ctx, w, h, tsec, sid) {
+    const sc = Math.min(w, h) / 720, v = w < h, fy = h * (v ? 0.8 : 0.78);
+    const spd = { car: 1, bike: 0.9, cycle: 0.45, walk: 0.22 }[sid] || 0.5;
+    const rnd = k => { const x = Math.sin(k * 127.1) * 43758.5453; return x - Math.floor(x); };
+    const g = ctx.createLinearGradient(0, 0, 0, fy); g.addColorStop(0, "#7cc4f5"); g.addColorStop(1, "#e3f4ff"); ctx.fillStyle = g; ctx.fillRect(0, 0, w, fy);
+    // far buildings (slow)
+    const far = (tsec * 25 * spd) % (120 * sc);
+    for (let i = -1, x0 = -far; x0 < w; i++, x0 += 120 * sc) { const k = Math.floor((tsec * 25 * spd) / (120 * sc)) + i + 2, bh = (120 + rnd(k) * 200) * sc; ctx.fillStyle = ["#c8d6e5", "#b8c9db", "#d5dfe9"][k % 3]; ctx.fillRect(x0, fy - h * 0.12 - bh, 110 * sc, bh); }
+    // trees / poles (mid)
+    const mid = (tsec * 140 * spd) % (260 * sc);
+    for (let x0 = -mid; x0 < w + 260 * sc; x0 += 260 * sc) { ctx.fillStyle = "#7f5539"; ctx.fillRect(x0 + 20 * sc, fy - h * 0.12 - 140 * sc, 18 * sc, 140 * sc); ctx.fillStyle = "#52b788"; ctx.beginPath(); ctx.arc(x0 + 29 * sc, fy - h * 0.12 - 160 * sc, 62 * sc, 0, 7); ctx.fill(); ctx.fillStyle = "#40916c"; ctx.beginPath(); ctx.arc(x0 + 60 * sc, fy - h * 0.12 - 130 * sc, 44 * sc, 0, 7); ctx.fill(); }
+    // footpath + road (fast)
+    ctx.fillStyle = "#b7b7a4"; ctx.fillRect(0, fy - h * 0.12, w, h * 0.12);
+    if (sid === "walk") { ctx.strokeStyle = "rgba(0,0,0,.12)"; ctx.lineWidth = 3 * sc; const o = (tsec * 140 * spd) % (60 * sc); for (let x0 = -o; x0 < w; x0 += 60 * sc) { ctx.beginPath(); ctx.moveTo(x0, fy - h * 0.12); ctx.lineTo(x0 - 20 * sc, fy); ctx.stroke(); } }
+    ctx.fillStyle = "#5c636a"; ctx.fillRect(0, fy, w, h - fy);
+    const fast = (tsec * 420 * spd) % (160 * sc); ctx.fillStyle = "#f8f9fa"; for (let x0 = -fast; x0 < w; x0 += 160 * sc) ctx.fillRect(x0, fy + (h - fy) * 0.45, 80 * sc, 8 * sc);
+    return fy;
+  }
+  function wheel(ctx, x, y, r, tsec, spin) {
+    ctx.fillStyle = "#1f1f24"; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    ctx.fillStyle = "#adb5bd"; ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#495057"; ctx.lineWidth = r * 0.08; for (let k = 0; k < 5; k++) { const a = -tsec * spin + k * 1.2566; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.5); ctx.stroke(); }
+  }
+  function spokeWheel(ctx, x, y, r, tsec, spin) {
+    ctx.strokeStyle = "#1f1f24"; ctx.lineWidth = r * 0.14; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke();
+    ctx.strokeStyle = "#868e96"; ctx.lineWidth = r * 0.03; for (let k = 0; k < 12; k++) { const a = -tsec * spin + k * 0.5236; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); ctx.stroke(); }
+    ctx.fillStyle = "#495057"; ctx.beginPath(); ctx.arc(x, y, r * 0.1, 0, 7); ctx.fill();
+  }
+  // returns where to stand the two characters, plus what to draw behind/in front of them
+  function travelLayout(sid, w, h, sc, v, fy, tsec) {
+    const bump = Math.sin(tsec * 15) * 2.5 * sc;
+    if (sid === "car") {
+      const L = (v ? 640 : 820) * sc, cx = w / 2, bot = fy + 40 * sc + bump, cs = (v ? 0.82 : 0.86) * sc, winTop = bot - 320 * sc, winBot = bot - 175 * sc;
+      const headY = bot - 245 * sc;
+      return { cs, A: { x: cx - L * 0.2, cy: headY + 232 * cs }, B: { x: cx + L * 0.2, cy: headY + 232 * cs },
+        back: ctx2 => { ctx2.fillStyle = "#e63946"; rr(ctx2, cx - L * 0.36, winTop - 10 * sc, L * 0.72, 150 * sc, 70 * sc); ctx2.fill(); ctx2.fillStyle = "#cfe8f7"; rr(ctx2, cx - L * 0.33, winTop + 6 * sc, L * 0.66, winBot - winTop - 6 * sc, 50 * sc); ctx2.fill(); },
+        front: ctx2 => {
+          ctx2.fillStyle = "#e63946"; rr(ctx2, cx - L / 2, winBot, L, bot - winBot - 20 * sc, 46 * sc); ctx2.fill();
+          ctx2.fillStyle = "#c1121f"; ctx2.fillRect(cx - L * 0.012, winTop, L * 0.024, winBot - winTop);
+          ctx2.fillStyle = "rgba(255,255,255,.18)"; ctx2.fillRect(cx - L / 2 + 30 * sc, winBot + 30 * sc, L - 60 * sc, 10 * sc);
+          ctx2.fillStyle = "#ffd166"; ctx2.beginPath(); ctx2.ellipse(cx + L / 2 - 20 * sc, winBot + 50 * sc, 20 * sc, 14 * sc, 0, 0, 7); ctx2.fill();
+          ctx2.fillStyle = "#adb5bd"; ctx2.fillRect(cx - 40 * sc, winBot + 40 * sc, 22 * sc, 6 * sc); ctx2.fillRect(cx + 60 * sc, winBot + 40 * sc, 22 * sc, 6 * sc);
+          wheel(ctx2, cx - L * 0.3, bot - 20 * sc, 62 * sc, tsec, 9); wheel(ctx2, cx + L * 0.3, bot - 20 * sc, 62 * sc, tsec, 9);
+        } };
+    }
+    if (sid === "bike") {
+      const cx = w / 2, cs = (v ? 0.8 : 0.82) * sc, seat = fy - 40 * sc + bump;
+      return { cs, A: { x: cx + 40 * sc, cy: seat }, B: { x: cx - 80 * sc, cy: seat - 8 * sc }, backFirst: "B", hands: { A: [[80, -40], [56, -30]] },
+        front: ctx2 => {
+          wheel(ctx2, cx - 170 * sc, fy + 20 * sc, 58 * sc, tsec, 10); wheel(ctx2, cx + 190 * sc, fy + 20 * sc, 58 * sc, tsec, 10);
+          ctx2.fillStyle = "#264653"; ctx2.beginPath(); ctx2.moveTo(cx - 200 * sc, seat + 10 * sc); ctx2.lineTo(cx + 150 * sc, seat - 10 * sc); ctx2.lineTo(cx + 190 * sc, fy + 20 * sc); ctx2.lineTo(cx - 170 * sc, fy + 20 * sc); ctx2.closePath(); ctx2.fill();
+          ctx2.fillStyle = "#2a9d8f"; rr(ctx2, cx + 30 * sc, seat - 40 * sc, 140 * sc, 60 * sc, 26 * sc); ctx2.fill();
+          ctx2.fillStyle = "#111"; rr(ctx2, cx - 190 * sc, seat - 8 * sc, 230 * sc, 22 * sc, 10 * sc); ctx2.fill();
+          ctx2.strokeStyle = "#111"; ctx2.lineWidth = 10 * sc; ctx2.beginPath(); ctx2.moveTo(cx + 170 * sc, seat - 40 * sc); ctx2.lineTo(cx + 150 * sc, seat - 110 * sc); ctx2.stroke();
+          ctx2.fillStyle = "#ffd166"; ctx2.beginPath(); ctx2.arc(cx + 205 * sc, seat - 40 * sc, 16 * sc, 0, 7); ctx2.fill();
+        } };
+    }
+    if (sid === "cycle") {
+      const cs = (v ? 0.72 : 0.78) * sc, xs = v ? [w * 0.28, w * 0.72] : [w * 0.3, w * 0.7], R = (v ? 50 : 56) * sc, wy = fy + 10 * sc;
+      const crank = x => ({ x, y: wy - 8 * sc }), seatY = wy - 120 * sc;
+      const frame = (ctx2, x, col) => {
+        spokeWheel(ctx2, x - 95 * sc, wy, R, tsec, 7); spokeWheel(ctx2, x + 95 * sc, wy, R, tsec, 7);
+        ctx2.strokeStyle = col; ctx2.lineWidth = 9 * sc; ctx2.lineJoin = "round"; ctx2.beginPath();
+        ctx2.moveTo(x - 95 * sc, wy); ctx2.lineTo(x - 10 * sc, wy - 8 * sc); ctx2.lineTo(x - 30 * sc, seatY + 14 * sc); ctx2.lineTo(x - 95 * sc, wy);
+        ctx2.moveTo(x - 30 * sc, seatY + 14 * sc); ctx2.lineTo(x + 70 * sc, seatY + 20 * sc); ctx2.lineTo(x - 10 * sc, wy - 8 * sc);
+        ctx2.moveTo(x + 70 * sc, seatY + 20 * sc); ctx2.lineTo(x + 95 * sc, wy); ctx2.moveTo(x + 70 * sc, seatY + 20 * sc); ctx2.lineTo(x + 62 * sc, seatY - 30 * sc); ctx2.stroke();
+        ctx2.fillStyle = "#111"; rr(ctx2, x - 55 * sc, seatY + 4 * sc, 50 * sc, 14 * sc, 7 * sc); ctx2.fill();
+        ctx2.strokeStyle = "#111"; ctx2.lineWidth = 8 * sc; ctx2.beginPath(); ctx2.moveTo(x + 45 * sc, seatY - 32 * sc); ctx2.lineTo(x + 82 * sc, seatY - 30 * sc); ctx2.stroke();
+      };
+      const pedal = (x, cs2, ph) => { const c = crank(x - 10 * sc); return [0, Math.PI].map(o => ({ x: (c.x + Math.cos(tsec * 6 + o + ph) * 22 * sc - (x - 30 * sc)) / cs2, y: (c.y + Math.sin(tsec * 6 + o + ph) * 22 * sc - (seatY + 4 * sc)) / cs2 })); };
+      return { cs, A: { x: xs[0] - 30 * sc, cy: seatY + 4 * sc, legs: { mode: "pedal", dir: -1, feet: pedal(xs[0], cs, 0) } }, B: { x: xs[1] - 30 * sc, cy: seatY + 4 * sc, legs: { mode: "pedal", dir: -1, feet: pedal(xs[1], cs, 1.3) } },
+        hands: { A: [[96, -42], [96, -42]], B: [[96, -42], [96, -42]] },
+        front: ctx2 => { frame(ctx2, xs[0], "#e76f51"); frame(ctx2, xs[1], "#3a86ff"); } };
+    }
+    // walk
+    const cs = (v ? 0.8 : 0.84) * sc, leg = 120 * cs;
+    return { cs, A: { x: v ? w * 0.3 : w * 0.34, cy: fy - h * 0.02 - leg, legs: { mode: "walk", ph: tsec * 6.5 } }, B: { x: v ? w * 0.7 : w * 0.66, cy: fy - h * 0.02 - leg, legs: { mode: "walk", ph: tsec * 6.5 + 1.1 } } };
+  }
+
   // the drawn room/space/street stays the same during a video → draw it once and reuse (smoother video)
   let sceneC = null, sceneK = "";
   const sceneMap = new Map();
@@ -1204,13 +1304,16 @@ const Video = (() => {
     const sc = Math.min(w, h) / 720, F = "'Noto Sans Devanagari','Noto Sans',sans-serif", v = w < h;
     const ph = photoAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
     const sid = sceneAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
-    if (ph) photoBg(ctx, w, h, ph, tsec, idx); else ctx.drawImage(sceneCache(w, h, sid), 0, 0);
-    const board = ph || LABEL_SCENES.has(sid) ? label : boardBig;
+    const moving = !ph && MOVING.has(sid);
+    let fyM = 0;
+    if (ph) photoBg(ctx, w, h, ph, tsec, idx); else if (moving) fyM = movingBg(ctx, w, h, tsec, sid); else ctx.drawImage(sceneCache(w, h, sid), 0, 0);
+    const board = ph || moving || LABEL_SCENES.has(sid) ? label : boardBig;
     const names = (plan && plan.names) || (GL() ? { A: "Leo", B: "Priya" } : { A: "Pappu", B: "Chacha" });
     const who = kind === "slide" ? s.who : null;
-    if (kind === "slide") board(ctx, w, h, s.heading, s.emoji, sc, F);
+    if (kind === "slide") { if (!moving) board(ctx, w, h, s.heading, s.emoji, sc, F); }
     else board(ctx, w, h, kind === "title" ? (plan && plan.title) || s : (EN() ? "Thanks for watching 🙏  Like • Subscribe" : "धन्यवाद 🙏  Like • Subscribe"), "", sc, F);
-    const cs = (v ? 1.15 : 1.25) * sc, ax = v ? w * 0.27 : w * 0.16, bx = v ? w * 0.73 : w * 0.84, cy = v ? h - 30 * sc : h - 10 * sc;
+    const TL = moving ? travelLayout(sid, w, h, sc, v, fyM, tsec) : null;
+    const cs = TL ? TL.cs : (v ? 1.15 : 1.25) * sc, ax = TL ? TL.A.x : v ? w * 0.27 : w * 0.16, bx = TL ? TL.B.x : v ? w * 0.73 : w * 0.84, cy = TL ? TL.A.cy : v ? h - 30 * sc : h - 10 * sc, cyB = TL ? TL.B.cy : cy;
     const bl = k => (tsec + k) % 3.9 < 0.13;
     const end = kind === "end";
     const mood = kind === "slide" ? (s.mood || "") : "";
@@ -1236,22 +1339,31 @@ const Video = (() => {
         if (sp && NEG.test(s.narration || "") && prog < 0.45) P.shake = 1; // "nahi" → head shake
       }
       P.dress = dressOf(k);
+      if (TL) {
+        if (TL[k].legs) P.legs = TL[k].legs;
+        const hd = TL.hands && TL.hands[k]; // holding the handlebar
+        if (hd) P.hands = [{ x: hd[0][0], y: hd[0][1], shape: "fist" }, { x: hd[1][0], y: hd[1][1], shape: "fist" }];
+        P.lean = 0;
+      }
       return P;
     };
-    drawChar(ctx, ax, cy, cs, "A", who === "A" ? mouth : 0, bl(0), who === "A" || (end && Math.sin(tsec * 6) > 0), tsec, 1, eA, gOf("A", 1));
-    drawChar(ctx, bx, cy, cs, "B", who === "B" ? mouth : 0, bl(1.7), who === "B", tsec, -1, eB, gOf("B", -1));
+    if (TL && TL.back) TL.back(ctx);
+    const drawA = () => drawChar(ctx, ax, cy, cs, "A", who === "A" ? mouth : 0, bl(0), who === "A" || (end && Math.sin(tsec * 6) > 0), tsec, 1, eA, gOf("A", 1));
+    const drawB = () => drawChar(ctx, bx, cyB, cs, "B", who === "B" ? mouth : 0, bl(1.7), who === "B", tsec, -1, eB, gOf("B", -1));
+    if (TL && TL.backFirst === "B") { drawB(); drawA(); } else { drawA(); drawB(); }
+    if (TL && TL.front) TL.front(ctx);
     // mood stickers
-    const sticker = (x, e) => { const t = e === "happy" ? "😂" : e === "angry" ? "💢" : e === "sad" ? "😳" : ""; if (!t) return; ctx.font = `${40 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(t, x + 60 * sc, cy - (v ? 340 : 370) * cs / sc * sc + Math.sin(tsec * 6) * 4 * sc); };
+    const sticker = (x, e) => { const t = e === "happy" ? "😂" : e === "angry" ? "💢" : e === "sad" ? "😳" : ""; if (!t) return; ctx.font = `${40 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(t, x + 60 * sc, (x === ax ? cy : cyB) - 296 * cs + Math.sin(tsec * 6) * 4 * sc); };
     sticker(ax, eA); sticker(bx, eB);
-    if (mood === "shayari" && who) { ctx.font = `${34 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText("✨📜✨", who === "A" ? ax : bx, cy - (v ? 450 : 480) * sc + Math.sin(tsec * 3) * 5 * sc); }
+    if (mood === "shayari" && who) { ctx.font = `${34 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText("✨📜✨", who === "A" ? ax : bx, (who === "A" ? cy : cyB) - 384 * cs + Math.sin(tsec * 3) * 5 * sc); }
     // name tags
     ctx.font = `bold ${22 * sc}px ${F}`; ctx.textAlign = "center";
     [[ax, names.A, "A"], [bx, names.B, "B"]].forEach(([x, n, k]) => {
-      const tw = ctx.measureText(n).width + 24 * sc, ty = cy - (v ? 395 : 425) * sc;
+      const tw = ctx.measureText(n).width + 24 * sc, ty = (k === "A" ? cy : cyB) - 340 * cs;
       ctx.fillStyle = who === k ? "#ffd166" : "rgba(255,255,255,.85)"; rr(ctx, x - tw / 2, ty - 24 * sc, tw, 34 * sc, 12 * sc); ctx.fill();
       ctx.fillStyle = "#2b2420"; ctx.fillText(n, x, ty);
     });
-    if (kind === "slide") subtitle(ctx, w, h, (who === "N" ? "📖 " : "") + s.narration, prog, sc, F, v ? h * 0.48 : h * 0.5, who === "A" ? "#ffd166" : who === "N" ? "#ffe8a3" : "#8fe3ff");
+    if (kind === "slide") subtitle(ctx, w, h, (who === "N" ? "📖 " : "") + s.narration, prog, sc, F, TL ? (v ? h * 0.24 : h * 0.17) : v ? h * 0.48 : h * 0.5, who === "A" ? "#ffd166" : who === "N" ? "#ffe8a3" : "#8fe3ff");
     if (kind === "slide") { ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(0, h - 8 * sc, w, 8 * sc); ctx.fillStyle = "#e07a2e"; ctx.fillRect(0, h - 8 * sc, w * ((idx + prog) / total), 8 * sc); }
     overlay(ctx, w, h, channel, sc, F, !ph && CAT() !== "how");
   }
