@@ -181,7 +181,7 @@ const Video = (() => {
       plans[mode] = plan; mode = m; plan = plans[mode] || null;
       Object.keys(voices).forEach(k => delete voices[k]); Object.keys(photos).forEach(k => delete photos[k]);
     }
-    restorePlan();
+    restorePlan(); look3d = !!S.get("vLook3d", true);
     if (mode === "g") return renderGlobal();
     $("#view").innerHTML = `<div class="wrap"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:6px 0">🎬 Video banao</h2>${IS_APP ? '<button class="btn" id="vmine">📁 Meri videos</button>' : ""}</div>
       ${(() => { const mk = S.get("vMaking", null); if (!mk) return ""; S.del("vMaking"); S.set("vLow", true);
@@ -392,6 +392,7 @@ const Video = (() => {
           <option value="phone" ${S.get("vVoice", "") === "phone" ? "selected" : ""}>📱 Phone ki Indian awaaz</option></select></label>`}
         ${p.style === "cartoon" ? `<div class="row"><button class="btn" id="vphotos">🖼️ Topic ki photos dhundho</button><label class="row small"><input type="checkbox" id="vphon" ${p.noPhotos ? "" : "checked"}> Peeche photo dikhao</label></div><div class="small muted">Photos Wikimedia Commons se (free license) — credit description mein apne aap judta hai.</div>` : ""}
         <button class="btn${p.style === "cartoon" ? " primary" : ""}" id="vtest">${p.style === "cartoon" ? "▶️ Pehle namoona dekho-suno (shuru ki 3 line)" : "▶️ Awaaz suno"}</button>
+        ${p.style === "cartoon" ? `<label class="row small"><input type="checkbox" id="v3d" ${S.get("vLook3d", true) ? "checked" : ""}> ✨ 3D jaisa look (roshni-chhaaya, chamakti aankhein)</label>` : ""}
         <label class="row small"><input type="checkbox" id="vlow" ${S.get("vLow", (navigator.deviceMemory || 8) <= 4) ? "checked" : ""}> 📉 Halki quality (purana/kam RAM phone, ya app blank ho jaye to)</label>
         <label class="field">🎵 Peeche music (app khud banata hai, copyright-free)<select id="vmusic">${Object.entries(MUSIC).map(([k, v]) => `<option value="${k}" ${musicStyle() === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
         ${p.style === "cartoon" ? "" : `<div class="banner small">💡 Video insaan jaisi lage, iske liye: 1) har slide pe <b>apni awaaz</b> record karo (sabse bada fark), 2) <b>apni kheenchi photo</b> lagao (court, thana, kagaz, apna haath — kisi ka chehra nahi), 3) script ko apne shabdon mein thoda badlo.</div>`}
@@ -414,6 +415,7 @@ const Video = (() => {
     $$("[data-unpic]").forEach(b => b.onclick = () => { readEdits(); delete photos[+b.dataset.unpic]; drawEditor(); });
     $("#vmusic").onchange = e => S.set("vMusicStyle", e.target.value);
     $("#vlow").onchange = e => S.set("vLow", e.target.checked);
+    if ($("#v3d")) $("#v3d").onchange = e => { S.set("vLook3d", e.target.checked); look3d = e.target.checked; sceneMap.clear(); };
     $$("[data-play]").forEach(b => b.onclick = () => { const a = new Audio(URL.createObjectURL(voices[+b.dataset.play].blob)); a.play(); });
     $("#vmake").onclick = make;
     const gate = () => { $("#vmake").disabled = $$(".vok").some(c => !c.checked); };
@@ -788,12 +790,23 @@ const Video = (() => {
     return (idx % 4 === 1) ? "hip" : "nod";
   }
 
+  // ✨ soft 3D look: shading gradients, softer outlines, shiny eyes, rosy cheeks
+  let look3d = true;
+  const tint = (hex, amt) => { // amt -1..1 → darker..lighter
+    const n = parseInt(String(hex).replace("#", ""), 16); if (isNaN(n)) return hex;
+    let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    const f = v => Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt));
+    return "rgb(" + f(r) + "," + f(g) + "," + f(b) + ")";
+  };
+  const radial = (ctx, x, y, r, base) => { const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.45, r * 0.08, x, y, r * 1.15); g.addColorStop(0, tint(base, 0.35)); g.addColorStop(0.55, base); g.addColorStop(1, tint(base, -0.28)); return g; };
+  const sideGrad = (ctx, x1, x2, base) => { const g = ctx.createLinearGradient(x1, 0, x2, 0); g.addColorStop(0, tint(base, 0.28)); g.addColorStop(0.4, base); g.addColorStop(1, tint(base, -0.3)); return g; };
+
   // Original characters. Hindi channel: Pappu + Chacha. Global channel: Leo + Priya.
   const LOOKS = {
-    pappu: { skin: "#e0ac7e", shirt: "#f4a72b", hair: "spiky", hc: "#1d1a18", brow: "#1d1a18", chest: "star" },
-    chacha: { skin: "#d39a6a", shirt: "#3d6fb6", hair: "bald", hc: "#e8e6e1", brow: "#cfcac2", chest: "buttons", glasses: 1, mustache: 1 },
-    leo: { skin: "#f3cba8", shirt: "#2fa37a", hair: "cap", hc: "#d9a441", cap: "#e2533c", brow: "#b5832e", chest: "hood", freckles: 1 },
-    priya: { skin: "#c98d62", shirt: "#b0306a", hair: "braid", hc: "#1a1414", brow: "#1a1414", chest: "kurti", bindi: 1, lashes: 1, earrings: 1 },
+    pappu: { eye: "#6b3e26", skin: "#e0ac7e", shirt: "#f4a72b", hair: "spiky", hc: "#1d1a18", brow: "#1d1a18", chest: "star" },
+    chacha: { eye: "#5a3a22", skin: "#d39a6a", shirt: "#3d6fb6", hair: "bald", hc: "#e8e6e1", brow: "#cfcac2", chest: "buttons", glasses: 1, mustache: 1 },
+    leo: { eye: "#3d8fd6", skin: "#f3cba8", shirt: "#2fa37a", hair: "cap", hc: "#d9a441", cap: "#e2533c", brow: "#b5832e", chest: "hood", freckles: 1 },
+    priya: { eye: "#7a4a2a", skin: "#c98d62", shirt: "#b0306a", hair: "braid", hc: "#1a1414", brow: "#1a1414", chest: "kurti", bindi: 1, lashes: 1, earrings: 1 },
   };
   const lookOf = who => LOOKS[GL() ? (who === "A" ? "leo" : "priya") : (who === "A" ? "pappu" : "chacha")];
   // mouth 0..1 (open), face: +1 looks right, -1 looks left
@@ -803,7 +816,7 @@ const Video = (() => {
     const bob = emo === "happy" ? Math.abs(Math.sin(tsec * 13)) * -5 * s : emo === "serious" ? 0 : talking ? Math.sin(tsec * 9) * 2.5 * s : Math.sin(tsec * 1.6 + ph) * 1.5 * s;
     ctx.save(); ctx.translate(x + Math.sin(tsec * 0.7 + ph) * 3 * s, y + bob + (P.dy || 0) * s); ctx.rotate(P.lean || 0);
     const DR = DRESS[P.dress] || null, chest = DR ? DR.chest : L.chest;
-    const shirt = DR ? DR.shirt : L.shirt, skin = L.skin, line = "#2b2420";
+    const shirt = DR ? DR.shirt : L.shirt, skin = L.skin, line = look3d ? "rgba(43,36,32,.6)" : "#2b2420";
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line; ctx.lineJoin = "round"; ctx.lineCap = "round";
     if (L.hair === "braid") { ctx.fillStyle = L.hc; ctx.beginPath(); ctx.ellipse(0, -215 * s, 76 * s, 92 * s, 0, 0, 7); ctx.fill(); }
     if (P.legs) { // walking or pedalling legs (hip → knee → foot), drawn behind the shirt
@@ -826,7 +839,9 @@ const Video = (() => {
       ctx.lineWidth = 4 * s;
     }
     // body
-    ctx.fillStyle = shirt; rr(ctx, -78 * s, -150 * s, 156 * s, 160 * s, 46 * s); ctx.fill(); ctx.stroke();
+    if (look3d && P.legs && P.legs.mode === "walk") { const sh = ctx.createRadialGradient(0, 118 * s, 4 * s, 0, 118 * s, 90 * s); sh.addColorStop(0, "rgba(0,0,0,.28)"); sh.addColorStop(1, "rgba(0,0,0,0)"); ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(0, 118 * s, 95 * s, 16 * s, 0, 0, 7); ctx.fill(); }
+    ctx.fillStyle = look3d ? sideGrad(ctx, -78 * s, 78 * s, shirt) : shirt; rr(ctx, -78 * s, -150 * s, 156 * s, 160 * s, 46 * s); ctx.fill(); ctx.stroke();
+    if (look3d) { const tg = ctx.createLinearGradient(0, -150 * s, 0, 10 * s); tg.addColorStop(0, "rgba(255,255,255,.22)"); tg.addColorStop(0.35, "rgba(255,255,255,0)"); tg.addColorStop(1, "rgba(0,0,0,.14)"); ctx.fillStyle = tg; rr(ctx, -78 * s, -150 * s, 156 * s, 160 * s, 46 * s); ctx.fill(); }
     if (chest === "police") {
       ctx.fillStyle = "#5a3d1e"; ctx.fillRect(-76 * s, -46 * s, 152 * s, 14 * s); ctx.fillStyle = "#d9b44a"; ctx.fillRect(-10 * s, -48 * s, 20 * s, 18 * s);
       ctx.strokeStyle = "rgba(60,40,10,.45)"; ctx.lineWidth = 3 * s; [-1, 1].forEach(d => { ctx.strokeRect((d > 0 ? 14 : -50) * s, -118 * s, 36 * s, 30 * s); });
@@ -872,7 +887,10 @@ const Video = (() => {
     ctx.save(); ctx.translate(0, hy); ctx.rotate(nod);
     if (P.shake) ctx.translate(Math.sin(tsec * 18) * 6 * s * P.shake, 0);
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line;
+    if (look3d) ctx.fillStyle = radial(ctx, 0, 0, 70 * s, skin);
     ctx.beginPath(); ctx.ellipse(0, 0, 66 * s, 72 * s, 0, 0, 7); ctx.fill(); ctx.stroke();
+    if (look3d) [-1, 1].forEach(d => { const cg = ctx.createRadialGradient(d * 38 * s, 24 * s, 1, d * 38 * s, 24 * s, 20 * s); cg.addColorStop(0, "rgba(255,105,120,.45)"); cg.addColorStop(1, "rgba(255,105,120,0)"); ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(d * 38 * s, 24 * s, 20 * s, 0, 7); ctx.fill(); });
+    ctx.fillStyle = skin;
     [-1, 1].forEach(sd => { ctx.fillStyle = skin; ctx.beginPath(); ctx.ellipse(sd * 66 * s, 6 * s, 12 * s, 17 * s, 0, 0, 7); ctx.fill(); ctx.stroke();
       if (L.earrings) { ctx.fillStyle = "#f2c14e"; ctx.beginPath(); ctx.arc(sd * 68 * s, 28 * s, 6 * s, 0, 7); ctx.fill(); } });
     // hair
@@ -894,6 +912,7 @@ const Video = (() => {
       ctx.quadraticCurveTo(-72 * s, -84 * s, 0, -80 * s); ctx.quadraticCurveTo(72 * s, -84 * s, 68 * s, 4 * s);
       ctx.quadraticCurveTo(56 * s, -40 * s, 4 * s, -50 * s); ctx.lineTo(-4 * s, -50 * s); ctx.quadraticCurveTo(-56 * s, -40 * s, -68 * s, 4 * s); ctx.fill();
     }
+    if (look3d && L.hair !== "bald") { ctx.strokeStyle = "rgba(255,255,255,.22)"; ctx.lineWidth = 6 * s; ctx.beginPath(); ctx.arc(-10 * s, -10 * s, 62 * s, -2.45, -1.75); ctx.stroke(); ctx.strokeStyle = line; ctx.lineWidth = 4 * s; }
     if (DR && DR.hat === "police") {
       ctx.fillStyle = "#c9ad72"; ctx.beginPath(); ctx.moveTo(-70 * s, -40 * s); ctx.lineTo(-62 * s, -92 * s); ctx.quadraticCurveTo(0, -118 * s, 62 * s, -92 * s); ctx.lineTo(70 * s, -40 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#3b2a14"; ctx.fillRect(-70 * s, -54 * s, 140 * s, 16 * s);
@@ -912,7 +931,12 @@ const Video = (() => {
     } else [-24, 24].forEach(dx => {
       if (blink) { ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo((dx - 10) * s, -6 * s); ctx.lineTo((dx + 10) * s, -6 * s); ctx.stroke(); return; }
       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(dx * s, -6 * s, 12 * s, 14 * s, 0, 0, 7); ctx.fill(); ctx.lineWidth = 2.5 * s; ctx.stroke();
-      ctx.fillStyle = line; ctx.beginPath(); ctx.arc(dx * s + ex, -4 * s + eyY, 6 * s, 0, 7); ctx.fill();
+      if (look3d) { // coloured iris + shine
+        const ix = dx * s + ex, iy = -3 * s + eyY, ig = ctx.createRadialGradient(ix, iy + 3 * s, 1, ix, iy, 9 * s);
+        ig.addColorStop(0, L.eye || "#7a4a2a"); ig.addColorStop(1, "#1a0e08"); ctx.fillStyle = ig; ctx.beginPath(); ctx.arc(ix, iy, 9 * s, 0, 7); ctx.fill();
+        ctx.fillStyle = "#0b0604"; ctx.beginPath(); ctx.arc(ix, iy + 1 * s, 4.2 * s, 0, 7); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ix - 3.2 * s, iy - 3.5 * s, 2.8 * s, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(ix + 3 * s, iy + 3 * s, 1.3 * s, 0, 7); ctx.fill();
+      } else { ctx.fillStyle = line; ctx.beginPath(); ctx.arc(dx * s + ex, -4 * s + eyY, 6 * s, 0, 7); ctx.fill(); }
       if (L.lashes) { const o = Math.sign(dx); ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo((dx + o * 9) * s, -16 * s); ctx.lineTo((dx + o * 17) * s, -22 * s); ctx.stroke(); }
     });
     // eyebrows (raised while talking)
@@ -956,7 +980,7 @@ const Video = (() => {
       const el = (c1[0] * side + c1[1] * 0.3) > (c2[0] * side + c2[1] * 0.3) ? c1 : c2; // elbow out and down
       ctx.lineCap = "round"; ctx.lineJoin = "round";
       ctx.strokeStyle = line; ctx.lineWidth = 30 * s; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(el[0], el[1]); ctx.lineTo(hx, hy2); ctx.stroke();
-      ctx.strokeStyle = shirt; ctx.lineWidth = 23 * s; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(el[0], el[1]); ctx.lineTo(hx, hy2); ctx.stroke();
+      ctx.strokeStyle = look3d ? sideGrad(ctx, sx - 30 * s, sx + 30 * s, shirt) : shirt; ctx.lineWidth = 23 * s; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(el[0], el[1]); ctx.lineTo(hx, hy2); ctx.stroke();
       hand(ctx, hx, hy2, Math.atan2(hy2 - el[1], hx - el[0]), s, skin, line, side, P.wig || 0, h.shape, h.n);
     });
     ctx.restore();
