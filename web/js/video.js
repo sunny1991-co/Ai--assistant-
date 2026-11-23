@@ -8,6 +8,8 @@ const Video = (() => {
   const EN = GL;
   const K = k => (mode === "g" ? k + "_g" : k); // separate settings per channel
   const vA = () => S.get(K("vVoiceA"), "Puck"), vB = () => S.get(K("vVoiceB"), mode === "g" ? "Aoede" : "Charon");
+  const vN = () => S.get(K("vVoiceN"), mode === "g" ? "Kore" : "Orus");
+  const voiceOf = who => (who === "N" ? vN() : who === "B" ? vB() : vA());
   const CAT = () => (plan && plan.cat) || "";
   const voices = {}; // slide index -> {blob, dur} (owner's own recorded voice)
   const photos = {}; // slide index -> HTMLImageElement (owner's own photo)
@@ -52,7 +54,8 @@ const Video = (() => {
     return buf;
   }
   async function aiVoiceRaw(text, voice, who, mood) {
-    const body = { contents: [{ role: "user", parts: [{ text: ((MOOD_TTS[EN() ? "en" : "hi"] || {})[mood] || "") + (EN() && who === "A" ? "Speak as a friendly, curious young American traveler — natural, expressive and conversational, with real reactions (surprise, laughter in the voice), not like a robot or news reader. Pronounce any Hindi words as best you can. Say this:\n" :
+    const body = { contents: [{ role: "user", parts: [{ text: ((MOOD_TTS[EN() ? "en" : "hi"] || {})[mood] || "") + (who === "N" ? (EN() ? "Narrate like a warm, gripping storyteller of an animated short film — rich, calm voice, clear diction, small dramatic pauses, not robotic. Say this:\n" : "Ek kahani sunane wale (daastango) ki tarah bolo — garm, rochak awaaz, thehar-thehar kar, jahan zaroori ho wahan halka sa raaz bhara andaaz; robot ya news reader jaisa nahi. Ye Hindi bolo:\n") :
+      EN() && who === "A" ? "Speak as a friendly, curious young American traveler — natural, expressive and conversational, with real reactions (surprise, laughter in the voice), not like a robot or news reader. Pronounce any Hindi words as best you can. Say this:\n" :
       EN() && who === "B" ? "Speak as a warm, cheerful young Indian woman in a natural Indian English accent — friendly, expressive storytelling, natural pauses; pronounce Hindi words authentically. Not robotic. Say this:\n" :
       EN() ? "Speak like a warm, friendly storyteller explaining to a friend — natural and conversational, clear neutral English, with natural pauses at commas and full stops, curious tone on questions. Not like a robot or a news reader. Say this:\n" : "Aise bolo jaise ek samajhdaar Bharatiya bada bhai apne dost ko chai pe samjha raha ho — aaram se, garmjoshi se, sawaal pe awaaz upar, zaroori baat pe zor, comma aur full stop pe halka ruk kar. News reader ya robot jaisa nahi. Ye Hindi bolo:\n") + text }] }],
       generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
@@ -192,6 +195,7 @@ const Video = (() => {
         <label class="field" style="flex:1">Channel ka naam<input id="vch" value="${esc(S.get(K("vChannel"), ""))}" placeholder="Jaise: Kanoon Aasaan"></label></div>
         <div class="row"><label class="field" style="flex:1">Andaaz<select id="vstyle">
           <option value="cartoon" ${S.get(K("vStyle"), "cartoon") === "cartoon" ? "selected" : ""}>🧑‍🤝‍🧑 Do cartoon aapas mein baat karein</option>
+          <option value="kahani" ${S.get(K("vStyle"), "cartoon") === "kahani" ? "selected" : ""}>🎬 Kahani / short film (narrator + kai jagah)</option>
           <option value="slides" ${S.get(K("vStyle"), "cartoon") === "slides" ? "selected" : ""}>🖼️ Slides + ek awaaz</option></select></label></div>
         <label class="field">🗣️ Bolchaal<select id="vbol"><option value="desi" ${S.get("vBol", "desi") === "desi" ? "selected" : ""}>Desi aam bhasha (kabhi-kabhi halki gaali: saala, kutta)</option><option value="saaf" ${S.get("vBol", "desi") === "saaf" ? "selected" : ""}>Saaf bhasha (koi gaali nahi)</option></select></label>
         <div class="row" id="vnames"><label class="field" style="flex:1">🙋 Sawaal puchne wala<input id="vna" value="${esc(S.get("vNameA", "Pappu"))}"></label>
@@ -202,7 +206,7 @@ const Video = (() => {
       <div id="vedit"></div></div>`;
     $("#vplan").onclick = makePlan;
     if ($("#vmine")) $("#vmine").onclick = myVideos;
-    const sn = () => { $("#vnames").hidden = $("#vstyle").value !== "cartoon"; };
+    const sn = () => { $("#vnames").hidden = $("#vstyle").value === "slides"; };
     $("#vstyle").onchange = () => { S.set(K("vStyle"), $("#vstyle").value); sn(); }; sn();
     $$("[data-idea]").forEach(b => b.onclick = () => { $("#vq").value = b.dataset.idea; });
     if (plan) drawEditor();
@@ -242,6 +246,7 @@ const Video = (() => {
           <label class="field" style="flex:1">Format<select id="vfmt"><option value="auto">🎲 Har baar alag (behtar)</option><option value="qa">💬 Sawaal-jawaab</option><option value="myth">❌✅ Myth vs Fact</option><option value="top">🔢 Top 5</option><option value="story">📖 Kahani</option></select></label></div>
         <div class="row"><label class="field" style="flex:1">🧳 Sawaal puchne wala<input id="vna" value="${esc(S.get("vNameA_g", "Leo"))}"></label>
           <label class="field" style="flex:1">🙋‍♀️ Samjhane wali<input id="vnb" value="${esc(S.get("vNameB_g", "Priya"))}"></label></div>
+        <label class="field">Andaaz<select id="vstyle"><option value="cartoon" ${S.get("vStyle_g", "cartoon") === "cartoon" ? "selected" : ""}>🧑‍🤝‍🧑 Baatcheet (Short ke liye best)</option><option value="kahani" ${S.get("vStyle_g", "cartoon") === "kahani" ? "selected" : ""}>🎬 Kahani / short film (narrator + scenes)</option></select></label>
         <label class="field">Channel ka naam<input id="vch" value="${esc(S.get("vChannel_g", ""))}" placeholder="e.g. Hello India"></label>
         <button class="btn primary wide" id="vplan">✍️ Script banao</button>
         <div id="vmsg" class="small" style="margin-top:6px"></div>
@@ -266,9 +271,9 @@ const Video = (() => {
       `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nTopic: ${topic}\n` + (cat === "hindi" ? "" : `Format: ${GFMT[fmt]}\n`) +
       `\nStyle: natural spoken English, short sentences, contractions, light clean humor, real reactions ("wait, what?", "no way!"). The very first line must hook in 3 seconds with a surprising fact or question. Vary rhythm. Never say "in this video we will". No filler, no repeated catchphrases. End: B gives a one-line recap, A asks viewers a question for the comments, then a quick "subscribe for more".\n` +
       `Accuracy and respect (strict): only well-established facts; never invent numbers, dates, names or quotes — if unsure, say it more generally. Respect every culture and religion: explain, never mock; no stereotypes; humor is never at a group's expense. No song lyrics or movie dialogue. No guarantees or personal advice.\n` +
-      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(room | thana | court | bazaar | ghar | gaon | sadak | office | hospital | school)","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
+      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
       `About ${nl} lines, mostly alternating (sometimes one speaker says two lines).\n` +
-      `STAGE: add top-level "cast":{"A":"(none | police | vakil | judge | dukaandaar | office | doctor | kisaan)","B":"(same list)"} — costumes for this story (e.g. one plays a shopkeeper, the other a police officer); "none" = their usual clothes. For each line pick "scene" where it happens; keep the same scene for several lines and change only when the story moves. Costumed characters still only share general information, never personal legal/medical/financial advice.\n` +
+      `STAGE: add top-level "cast":{"A":"(${DRS_LIST})","B":"(same list)"} — costumes for this story (e.g. one plays a shopkeeper, the other a police officer); "none" = their usual clothes. For each line pick "scene" where it happens; keep the same scene for several lines and change only when the story moves. Costumed characters still only share general information, never personal legal/medical/financial advice.\n` +
       `ENTERTAINMENT (very important — it must be fun to watch, not a dry answer): include 2-3 clean jokes or puns that fit the moment (mood "funny"), ` +
       `one short ORIGINAL two-line rhyme or poetic line, e.g. B sums up a point in verse (mood "shayari"; never quote famous poems or lyrics), ` +
       `one moment where ${nB} playfully scolds ${nA} for a silly idea or mistake (mood "daant"; affectionate, never mean), ` +
@@ -281,7 +286,8 @@ const Video = (() => {
     const g = mode === "g";
     const topic = g ? q + (facts ? "\nMust-include notes from the creator:\n" + facts : "") : "Sawaal: " + (q || "(tathya se banao)") + (facts ? "\nJudgment / tathya:\n" + facts : "");
     S.set(K("vChannel"), $("#vch").value.trim());
-    const len = $("#vlen").value, n = LENGTHS[len][1], style = g ? "cartoon" : $("#vstyle").value;
+    const len = $("#vlen").value, n = LENGTHS[len][1], style = $("#vstyle") ? $("#vstyle").value : "cartoon", isK = style === "kahani";
+    S.set(K("vStyle"), style);
     const bol = !g && $("#vbol") ? $("#vbol").value : "saaf"; if (!g && $("#vbol")) S.set("vBol", bol);
     const BOL = bol === "desi"
       ? `BHASHA: bilkul aam Bharatiya bolchaal — jaise gali-mohalle, chai ki dukaan pe log baat karte hain: chhote vakya, "arre yaar", "abe", "bhai", "chal hat", "kya bakwaas hai", aadhe-adhoore vakya, Hindi-English mix (jaise "tension mat le", "full confusion"). Kitaabi Hindi bilkul nahi. Gaali sirf HALKI aur kabhi-kabhi: poori video mein zyada se zyada 2-3 baar, sirf "saala", "kutta", "kamina", "gadha", "ullu" jaise shabd, sirf gusse ya mazaak ke pal mein, aur pehli 15 second mein bilkul nahi. Isse zyada gandi gaali, maa-behen ki gaali, jaati/dharm/aurat/viklang ke liye apmaanjanak shabd, ya peedit ko gaali KABHI nahi. `
@@ -297,20 +303,32 @@ const Video = (() => {
     const RULES = `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
       `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi; "pakka milega"/"case jeet jaoge" jaisi koi guarantee nahi.`;
     const HEAD = `"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)"`;
-    const nl = { short: 8, mid: 18, long: 32 }[len];
+    const nl = (isK ? { short: 12, mid: 34, long: 62 } : { short: 8, mid: 18, long: 32 })[len], mins = { short: "45 second", mid: "3 minute", long: "6 minute" }[len];
     const CARTOON = `YouTube cartoon video ki script banani hai — do original cartoon kirdaar aapas mein baat karte hain (Hindi, aam logon ke liye). Vishay:\n${topic}\n\n` +
       `Kirdaar: A = "${nA}" — aam aadmi, darshak ki tarah sawaal puchta hai, kabhi confuse hota hai, halka mazaak karta hai. B = "${nB}" — samajhdaar bade, dheeraj se aasaan misaal dekar samjhate hain. B vakil NAHI hai — jaankari deta hai, salah nahi; zaroorat pe kehta hai "apne case ke liye vakil se milna".\n` +
-      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(room | thana | court | bazaar | ghar | gaon | sadak | office | hospital | school)","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
+      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
       `Lagbhag ${nl} lines, A aur B baari-baari (kabhi ek hi kirdaar 2 line bhi). Shuru: A ek aam zindagi ki pareshani/sawaal se (pehli line 3 second mein dhyaan khinche). B ki pehli line mein chhota sa: "dekho, ye sirf jaankari hai, kanooni salah nahi". Beech mein: seedha jawab, kanoon/court kya kehta hai (judgment diya ho to naam-saal), kya karein — steps. A beech-beech mein sawaal/shaq kare taaki baat asli lage. Aakhir: B saar + "apne case ke liye vakil se milna, nateeje ki guarantee koi nahi de sakta"; A darshakon se: "aapke saath aisa hua hai? comment mein batao, aur like-subscribe kar do". ` +
       `Mazaak halka aur saaf ho — peedit, jaati, dharm, aurat/aadmi ya kisi samuday pe mazaak nahi. Kitaabi ya ratti hui bhasha nahi. ` + BOL +
-      `MANCH: top-level "cast":{"A":"(none | police | vakil | judge | dukaandaar | office | doctor | kisaan)","B":"(wahi list)"} do — is kahani mein kaun kya bana hai (jaise ek garib dukaandaar, doosra police wala; "none" = roz ke kapde). Har line ka "scene" chuno ki baat kahan ho rahi hai; kai line ek hi jagah rakho, kahani aage badhe tabhi badlo. Vakil/police ki dress mein bhi kirdaar sirf aam jaankari dete hain, kanooni salah nahi. ` +
+      `MANCH: top-level "cast":{"A":"(${DRS_LIST})","B":"(wahi list)"} do — is kahani mein kaun kya bana hai (jaise ek garib dukaandaar, doosra police wala; "none" = roz ke kapde). Har line ka "scene" chuno ki baat kahan ho rahi hai; kai line ek hi jagah rakho, kahani aage badhe tabhi badlo. Vakil/police ki dress mein bhi kirdaar sirf aam jaankari dete hain, kanooni salah nahi. ` +
       `MANORANJAN (bahut zaroori — seedha-saadha jawab nahi, sunne wale ko maza aaye): 2-3 jagah halka saaf chutkula ya mazedaar baat jo vishay se judi ho (mood "funny"); ` +
       `ek chhoti APNI banayi 2 line ki shayari, jaise ${nB} kisi baat ko sher mein samjhaye (mood "shayari"; kisi mashhoor shayar/gaane ki line nahi); ` +
       `ek jagah ${nB} ${nA} ko pyaar se daant lagaye jab wo koi galat/bewakoofi wali baat kare (mood "daant", jaise "arre buddhu!" — apmaan nahi); ` +
       `jahan kanoon, khatra ya kisi ki takleef ki baat ho wahan 1-3 line gambhir (mood "serious") — wahan mazaak bilkul nahi. Baaki "normal". Mood ooper-neeche hota rahe. Apradh ya peedit ki takleef pe kabhi mazaak nahi. ` + RULES;
+    const LINE_JSON = `{"who":"A | B | N","text":"(1-2 chhote bolchaal ke vakya)","key":"(board/label ke liye 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","dressA":"(SIRF jab is line se A ki dress badle: ${DRS_LIST}; warna ye field mat do)","dressB":"(waise hi B ke liye)","photo":"(khaali chhodo)"}`;
+    const KAHANI = () => `YouTube ke liye ek CARTOON KAHANI (short film) likho — lagbhag ${mins}, Hindi, aam logon ke liye. Vishay / kahani ka idea:\n${topic}\n\n` +
+      `Kirdaar: A = "${nA}" (aam aadmi — bhola, jaldi bharosa kar leta hai, galti karta hai, mazaakiya), B = "${nB}" (samajhdaar, kanoon ki AAM jaankari rakhta hai, vakil NAHI), N = narrator (kahani sunane wala — scene badalne aur kahani aage badhane ke liye chhote vakya; har 3-6 line mein ek se zyada nahi). Kahani ke baaki log (thag, dukaandaar, police wala, padosi, afsar) A ya B hi dress badal kar nibhate hain ("dressA"/"dressB"), ya narrator unki baat bata deta hai.\n` +
+      `KAHANI KA FORMULA (pakka pakdo): 1) HOOK — pehli 5 second mein musibat ya chaunkane wala pal. 2) Shuruaat — kaun, kahan, kya chahta hai. 3) Musibat — koi thag/dabang fayda uthata hai ya A galti karta hai (mazaak bhi). 4) Kahani ke 25%, 50% aur 75% par ek naya mod/twist. 5) Insaaf sirf KANOONI raaste se (thana, FIR, helpline, consumer forum, court) — B sahi aam jaankari deta hai. 6) Ant — ${nB} ki chhoti APNI 2-line shayari + seekh + darshak se sawaal ("aapke saath aisa hua hai? comment mein batao") + agli kahani ka chhota ishara. ` +
+      `Kahani 30-60 second ke hisson mein aage badhe; har hisse mein jagah (scene) ya mood badle; safar ho to car/bike/walk/cycle scene bhi use karo (agar list mein hon). ${nB} ki ek pehchaan wali line 2-3 baar aaye (jaise "Arre buddhu!"). Kahani kaalpanik ho — kisi asli vyakti/ghatna/company ka naam nahi. Apradh, thagi ya police se bachne ki tareef KABHI nahi; galat kaam ka nateeja dikhao. B ki pehli line mein chhota sa: "ye kahani sirf jaankari ke liye hai, kanooni salah nahi".\n` +
+      `Mazaak (2-3 jagah, mood "funny"), ek jagah pyaar bhari daant (mood "daant"), takleef/kanoon ki baat par gambhir (mood "serious"), ant mein shayari (mood "shayari"). Mood ooper-neeche hota rahe. ` + BOL +
+      `Sirf JSON do:\n{${HEAD},"cast":{"A":"(${DRS_LIST})","B":"(wahi list)"},"lines":[${LINE_JSON}]}\nLagbhag ${nl} lines. ` + RULES;
+    const KAHANI_G = () => `Write an animated SHORT FILM script (about ${mins}) for an international audience. Characters: A = "${nA}" (curious traveler from abroad, makes funny mistakes), B = "${nB}" (warm, witty Indian friend who knows things), N = narrator (short storyteller lines that move the story or change scene; at most one every 3-6 lines). Other roles (shopkeeper, auto driver, police officer, aunty) are played by A or B via a costume change ("dressA"/"dressB") or described by the narrator.\n` +
+      `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nStory idea: ${topic}\n` +
+      `FORMULA: hook within 5 seconds; setup (who/where/what they want); a problem (culture shock or a mistake, with humor); a new twist at 25%, 50% and 75%; resolution where B explains with accurate, well-established facts; ending: B's short ORIGINAL two-line rhyme + the lesson + a question to viewers + a tease of the next episode of the "${nA} in India" series. Move in 30-60 second mini-arcs; change scene or mood each arc; use travel scenes (car/bike/walk/cycle) when they travel, if available. ` +
+      `Natural spoken English, contractions, real reactions; 2-3 clean jokes ("funny"), one playful scolding ("daant"), serious beats where respect is needed ("serious"), the closing rhyme ("shayari"). Respect every culture and religion — explain, never mock; no stereotypes; never invent numbers, dates, names or quotes; fictional story, no real private people or companies.\n` +
+      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","cast":{"A":"(${DRS_LIST})","B":"(same list)"},"lines":[${LINE_JSON.replace("1-2 chhote bolchaal ke vakya", "1-2 short spoken sentences").replace("board/label ke liye 2-5 shabd", "2-5 words for the label").replace("SIRF jab is line se A ki dress badle", "ONLY when A changes costume from this line").replace("warna ye field mat do", "otherwise omit").replace("waise hi B ke liye", "same for B").replace("khaali chhodo", "leave empty")}]}\nAbout ${nl} lines.`;
     $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script ban rahi hai…';
     try {
-      const r = await G.ask([{ role: "user", parts: [{ text: g ? globalPrompt(topic, nA, nB, cat, fmt, nl) : (style === "cartoon" ? CARTOON :
+      const r = await G.ask([{ role: "user", parts: [{ text: isK ? (g ? KAHANI_G() : KAHANI()) : g ? globalPrompt(topic, nA, nB, cat, fmt, nl) : (style === "cartoon" ? CARTOON :
         `YouTube video banana hai (Hindi, aam logon ke liye, aasaan bhasha). Vishay:\n${topic}\n\n` +
         `Sirf JSON do, aur kuch nahi:\n{"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)",` +
         `"slides":[{"emoji":"(1 emoji jo slide ko dikhaye)","heading":"(chhota, Hindi)","points":["(3 keyword, har ek 2-5 shabd)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
@@ -320,12 +338,14 @@ const Video = (() => {
         { system: g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, onPart: () => {} });
       const t = r.text.replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
       plan = JSON.parse(t);
-      if (style === "cartoon") {
-        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^b/i.test(l.who || "") ? "B" : "A", narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60), mood: ["funny", "serious", "daant", "shayari"].includes(String(l.mood || "").toLowerCase()) ? String(l.mood).toLowerCase() : "",
+      if (style === "cartoon" || isK) {
+        const okD0 = d => (DRESS[String(d || "").toLowerCase()] ? String(d).toLowerCase() : "");
+        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^n/i.test(l.who || "") ? "N" : /^b/i.test(l.who || "") ? "B" : "A",
+          dA: l.dressA != null && l.dressA !== "" ? okD0(l.dressA) : null, dB: l.dressB != null && l.dressB !== "" ? okD0(l.dressB) : null, narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60), mood: ["funny", "serious", "daant", "shayari"].includes(String(l.mood || "").toLowerCase()) ? String(l.mood).toLowerCase() : "",
           scene: SCENES[String(l.scene || "").toLowerCase()] ? String(l.scene).toLowerCase() : "" }));
         const okD = d => (DRESS[String(d || "").toLowerCase()] ? String(d).toLowerCase() : "");
         plan.cast = { A: okD((plan.cast || {}).A), B: okD((plan.cast || {}).B) };
-        plan.style = "cartoon"; plan.names = { A: nA, B: nB };
+        plan.style = "cartoon"; plan.kahani = isK; plan.names = { A: nA, B: nB, N: g ? "Narrator" : "Kahanikaar" };
       }
       if (!Array.isArray(plan.slides) || !plan.slides.length) throw new Error("script nahi mili — dobara dabao");
       plan.short = len === "short"; plan.lang = g ? "en" : "hi"; plan.mode = mode; plan.cat = cat; plan.fmt = fmt;
@@ -349,7 +369,7 @@ const Video = (() => {
       ${p.style === "cartoon" ? p.slides.map((s, i) => `<div class="card"><div class="row"><b>${i + 1}.</b>
         <select data-mood="${i}">${[["", "🙂 Normal"], ["funny", "😂 Mazaak"], ["serious", "😐 Gambhir"], ["daant", "😤 Daant"], ["shayari", "✍️ Shayari"]].map(([k, t]) => `<option value="${k}" ${(s.mood || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select>
         <select data-scene="${i}">${Object.entries(SCENES).map(([k, t]) => `<option value="${k}" ${(s.scene || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select>
-        <select data-who="${i}"><option value="A" ${s.who === "A" ? "selected" : ""}>${GL() ? "🧳" : "🙋"} ${esc(p.names.A)}</option><option value="B" ${s.who === "B" ? "selected" : ""}>${GL() ? "🙋‍♀️" : "👴"} ${esc(p.names.B)}</option></select></div>
+        <select data-who="${i}"><option value="A" ${s.who === "A" ? "selected" : ""}>${GL() ? "🧳" : "🙋"} ${esc(p.names.A)}</option><option value="B" ${s.who === "B" ? "selected" : ""}>${GL() ? "🙋‍♀️" : "👴"} ${esc(p.names.B)}</option>${p.kahani || s.who === "N" ? `<option value="N" ${s.who === "N" ? "selected" : ""}>📖 ${esc(p.names.N || "Narrator")}</option>` : ""}</select></div>
         <label class="field">🔊 Bolna hai<textarea data-n="${i}" rows="2">${esc(s.narration || "")}</textarea></label>
         <label class="field">🟩 Board pe<input data-h="${i}" value="${esc(s.heading || "")}"></label>
         <div class="row small" data-phrow="${i}">${photoRow(s, i)}</div>
@@ -363,6 +383,7 @@ const Video = (() => {
       <div class="card">${p.style === "cartoon" ? `
         <label class="field">🙋 ${esc(p.names.A)} ki awaaz<select id="vva">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vA() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
         <label class="field">👴 ${esc(p.names.B)} ki awaaz<select id="vvb">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vB() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        ${p.kahani ? `<label class="field">📖 Narrator ki awaaz<select id="vvn">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vN() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>` : ""}
         <div class="row"><label class="field" style="flex:1">👕 ${esc(p.names.A)} ki dress<select id="vda">${Object.entries(DRESSES).map(([k, t]) => `<option value="${k}" ${((p.cast || {}).A || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
           <label class="field" style="flex:1">👕 ${esc(p.names.B)} ki dress<select id="vdb">${Object.entries(DRESSES).map(([k, t]) => `<option value="${k}" ${((p.cast || {}).B || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
         <select id="vvoice" hidden><option value="ai:${vA()}"></option></select>` : `
@@ -402,6 +423,7 @@ const Video = (() => {
     if (p.style === "cartoon") {
       $("#vva").onchange = e => { S.set(K("vVoiceA"), e.target.value); $("#vvoice").innerHTML = `<option value="ai:${e.target.value}"></option>`; };
       $("#vvb").onchange = e => S.set(K("vVoiceB"), e.target.value);
+      if ($("#vvn")) $("#vvn").onchange = e => S.set(K("vVoiceN"), e.target.value);
     }
     if (p.style === "cartoon") {
       $("#vtest").onclick = preview;
@@ -510,7 +532,7 @@ const Video = (() => {
   async function lineAudio(ac, i) {
     if (voices[i]) return ac.decodeAudioData(await voices[i].blob.arrayBuffer());
     const sl = plan.slides[i], text = sl.narration || sl.heading || " ";
-    const vv = plan.style === "cartoon" ? "ai:" + (sl.who === "B" ? vB() : vA()) : S.get("vVoice", "ai:Charon");
+    const vv = plan.style === "cartoon" ? "ai:" + voiceOf(sl.who) : S.get("vVoice", "ai:Charon");
     if (vv.startsWith("ai:")) {
       try { return await ac.decodeAudioData(await aiVoice(text, vv.slice(3), plan.style === "cartoon" ? sl.who : "", plan.style === "cartoon" ? sl.mood : "")); }
       catch (e) { if (!IS_APP) throw e; }
@@ -566,7 +588,7 @@ const Video = (() => {
     readEdits();
     const out = $("#vcres");
     out.innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Jaanch ho rahi hai…';
-    const script = plan.style === "cartoon" ? plan.slides.map((s, i) => `${i + 1}. ${plan.names[s.who]}: ${s.narration}  [board: ${s.heading}]`).join("\n") :
+    const script = plan.style === "cartoon" ? plan.slides.map((s, i) => `${i + 1}. ${plan.names[s.who] || "Narrator"}: ${s.narration}  [board: ${s.heading}]`).join("\n") :
       plan.slides.map((s, i) => `Slide ${i + 1}: ${s.heading}\n- ${(s.points || []).join("\n- ")}\nBolna: ${s.narration}`).join("\n\n");
     try {
       const r = await G.ask([{ role: "user", parts: [{ text: GL() ?
@@ -710,6 +732,8 @@ const Video = (() => {
     doctor: { shirt: "#f7f7f7", chest: "doctor" },
     kisaan: { shirt: "#f4f1e6", chest: "kurta2", hat: "safa" },
   };
+  const SCN_LIST = () => Object.keys(SCENES).map(k => k || "room").join(" | ");
+  const DRS_LIST = "none | " + Object.keys(DRESS).join(" | ");
   const LABEL_SCENES = new Set(["thana", "court", "bazaar", "ghar", "gaon", "sadak", "office", "hospital"]);
 
   // ---------- body language: different movements for different kinds of speech ----------
@@ -1199,7 +1223,10 @@ const Video = (() => {
       return end ? "happy" : "";
     };
     const eA = emoOf("A"), eB = emoOf("B");
-    const dressOf = k => ((plan && plan.cast) || {})[k] || "";
+    const dressOf = k => { // a costume change on a line lasts until the next change
+      if (plan && plan.slides && kind !== "title") for (let i = Math.min(kind === "end" ? 1e9 : idx, plan.slides.length - 1); i >= 0; i--) { const d = plan.slides[i]["d" + k]; if (d != null) return d; }
+      return ((plan && plan.cast) || {})[k] || "";
+    };
     const gOf = (k, f) => {
       let P;
       if (kind === "end") P = poseOf("wave", f, tsec, prog, 0);
@@ -1224,7 +1251,7 @@ const Video = (() => {
       ctx.fillStyle = who === k ? "#ffd166" : "rgba(255,255,255,.85)"; rr(ctx, x - tw / 2, ty - 24 * sc, tw, 34 * sc, 12 * sc); ctx.fill();
       ctx.fillStyle = "#2b2420"; ctx.fillText(n, x, ty);
     });
-    if (kind === "slide") subtitle(ctx, w, h, s.narration, prog, sc, F, v ? h * 0.48 : h * 0.5, who === "A" ? "#ffd166" : "#8fe3ff");
+    if (kind === "slide") subtitle(ctx, w, h, (who === "N" ? "📖 " : "") + s.narration, prog, sc, F, v ? h * 0.48 : h * 0.5, who === "A" ? "#ffd166" : who === "N" ? "#ffe8a3" : "#8fe3ff");
     if (kind === "slide") { ctx.fillStyle = "rgba(0,0,0,.12)"; ctx.fillRect(0, h - 8 * sc, w, 8 * sc); ctx.fillStyle = "#e07a2e"; ctx.fillRect(0, h - 8 * sc, w * ((idx + prog) / total), 8 * sc); }
     overlay(ctx, w, h, channel, sc, F, !ph && CAT() !== "how");
   }
@@ -1297,7 +1324,7 @@ const Video = (() => {
       for (let i = 0; i < plan.slides.length; i++) {
         say(`🔊 Awaaz taiyaar ho rahi hai… ${i + 1}/${plan.slides.length}`); stage(`awaaz ${i + 1}/${plan.slides.length}`);
         if (voices[i]) { bufs.push(await ac.decodeAudioData(await voices[i].blob.arrayBuffer())); continue; }
-        const vv = cartoon ? "ai:" + (plan.slides[i].who === "B" ? vB() : vA()) : S.get("vVoice", "ai:Charon"), text = plan.slides[i].narration || plan.slides[i].heading || " ";
+        const vv = cartoon ? "ai:" + voiceOf(plan.slides[i].who) : S.get("vVoice", "ai:Charon"), text = plan.slides[i].narration || plan.slides[i].heading || " ";
         if (vv.startsWith("ai:")) {
           try { bufs.push(await ac.decodeAudioData(await aiVoice(text, vv.slice(3), cartoon ? plan.slides[i].who : "", cartoon ? plan.slides[i].mood : ""))); continue; }
           catch (e) { if (!IS_APP) throw e; fallbackNote = "Kuch hisson mein AI awaaz ki free limit poori — wahan phone ki awaaz lagi" + (cartoon ? " (dono kirdaar ki ek jaisi awaaz)" : ""); }
