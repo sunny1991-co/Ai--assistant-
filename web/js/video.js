@@ -296,25 +296,48 @@ const Video = (() => {
     });
   }
   // Parse the AI's JSON; if it got cut off, keep every complete line it did send.
+  // Reads the AI's script even when it is nested ({scenes:[{lines:[…]}]}), a bare array, uses other key
+  // names (speaker/dialogue/narration) or was cut off midway (keeps every finished line).
   function readScript(txt) {
-    const t = String(txt || "").replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
-    try { const j = JSON.parse(t); if (j && (Array.isArray(j.lines) || Array.isArray(j.slides))) return j; } catch (e) { /* salvage below */ }
-    const key = /"(lines|slides)"\s*:\s*\[/.exec(txt || ""); if (!key) return null;
-    const objs = []; let depth = 0, inStr = false, esc = false, start = -1;
-    for (let i = key.index + key[0].length; i < txt.length; i++) {
-      const ch = txt[i];
+    const raw = String(txt || "").replace(/```(?:json)?/gi, "");
+    const TXT = o => o && typeof o === "object" && !Array.isArray(o) ? ["text", "narration", "line", "dialogue", "says", "speech"].find(k => typeof o[k] === "string" && o[k].trim()) : null;
+    const isLine = o => !!TXT(o) && ["who", "speaker", "character", "by", "name"].some(k => typeof o[k] === "string");
+    const fix = (o, sc) => { const k = TXT(o), l = { ...o, text: String(o[k]) }; l.who = String(o.who || o.speaker || o.character || o.by || o.name || "A"); if (!l.scene && sc) l.scene = sc; return l; };
+    const headOf = j => ({ title: j.title || "", description: j.description || "", thumbnail_text: j.thumbnail_text || "", tags: Array.isArray(j.tags) ? j.tags : [], cast: j.cast });
+    const walk = (node, sc, out) => {
+      if (Array.isArray(node)) { node.forEach(x => walk(x, sc, out)); return; }
+      if (!node || typeof node !== "object") return;
+      if (isLine(node)) { out.push(fix(node, sc)); return; }
+      const s2 = typeof node.scene === "string" ? node.scene : typeof node.location === "string" ? node.location : sc;
+      Object.keys(node).forEach(k => { if (node[k] && typeof node[k] === "object") walk(node[k], s2, out); });
+    };
+    let j = null;
+    for (const c of [raw.trim(), raw.replace(/^[\s\S]*?([{[])/, "$1").replace(/[}\]][^}\]]*$/, m => m[0])]) { try { j = JSON.parse(c); break; } catch (e) { /* next */ } }
+    if (j) {
+      if (!Array.isArray(j) && Array.isArray(j.slides) && j.slides.length && !j.lines) return j;
+      const lines = []; walk(j, "", lines);
+      if (lines.length >= 3) return { ...(Array.isArray(j) ? { title: "", description: "", thumbnail_text: "", tags: [] } : headOf(j)), lines };
+    }
+    // Salvage: every complete {…} that is a line (any depth), in order
+    const lines = [], slides = [], stack = []; let inStr = false, esc = false;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
       if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
       if (ch === '"') inStr = true;
-      else if (ch === "{") { if (depth++ === 0) start = i; }
-      else if (ch === "}") { if (--depth === 0 && start >= 0) { try { objs.push(JSON.parse(txt.slice(start, i + 1))); } catch (e) { /* skip */ } start = -1; } }
-      else if (ch === "]" && depth === 0) break;
+      else if (ch === "{") stack.push(i);
+      else if (ch === "}" && stack.length) {
+        const st = stack.pop(); let o = null;
+        try { o = JSON.parse(raw.slice(st, i + 1)); } catch (e) { o = null; }
+        if (isLine(o)) lines.push({ at: st, l: fix(o, "") });
+        else if (o && typeof o.narration === "string" && !Object.values(o).some(v => v && typeof v === "object" && !Array.isArray(v))) slides.push({ at: st, l: o });
+      }
     }
-    if (objs.length < 4) return null;
-    const head = k => { const m = new RegExp('"' + k + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"').exec(txt); try { return m ? JSON.parse('"' + m[1] + '"') : ""; } catch (e) { return ""; } };
+    const head = k => { const m = new RegExp('"' + k + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"').exec(raw); try { return m ? JSON.parse('"' + m[1] + '"') : ""; } catch (e) { return ""; } };
     const out = { title: head("title"), description: head("description"), thumbnail_text: head("thumbnail_text"), tags: [], cut: true };
-    const castM = /"cast"\s*:\s*(\{[^}]*\})/.exec(txt); if (castM) try { out.cast = JSON.parse(castM[1]); } catch (e) { /* ignore */ }
-    out[key[1]] = objs;
-    return out;
+    const castM = /"cast"\s*:\s*(\{[^}]*\})/.exec(raw); if (castM) try { out.cast = JSON.parse(castM[1]); } catch (e) { /* ignore */ }
+    if (lines.length >= 3) { out.lines = lines.sort((a, b) => a.at - b.at).map(x => x.l); return out; }
+    if (slides.length >= 3) { out.slides = slides.sort((a, b) => a.at - b.at).map(x => x.l); return out; }
+    return null;
   }
   async function makePlan() {
     const q = $("#vq").value.trim(), facts = $("#vtopic").value.trim();
@@ -378,18 +401,25 @@ const Video = (() => {
         `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche) aur uski narration ke ant mein ek chhoti line: "ye video sirf jaankari ke liye hai", 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, sirf jaankari hai — kisi nateeje ki guarantee nahi; apne case ke liye vakil se milein' + 'achhi lagi to like aur subscribe'. LEHJA (sabse zaroori — video AI jaisi nahi lagni chahiye): narration aise likho jaise ek insaan camera ke saamne dost se baat kar raha ho — "dekhiye", "ab socho", "yahan dhyaan dena" jaise shabd, chhote vakya, aap/aapke se baat, ek-do sawaal darshak se. Pehli slide ki pehli line 3 second mein dhyaan khinche (ek aam zindagi ki situation: "maan lijiye raat ko police aapke ghar aati hai…" — kisi asli vyakti ka naam nahi). Rataa-rataaya ya kitaabi bhasha nahi, "is video mein hum jaanenge" jaisi ghisi-piti line nahi. Screen ke points narration ko dohraayein nahi — sirf 2-5 shabd ke keyword. Aakhri slide mein darshak se ek sawaal: "aapke saath aisa hua hai? comment mein batao". Video mein kahin bhi "pakka paisa wapas milega" ya "case jeet jaoge" jaisi guarantee mat do. ` +
         `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
         `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.`) + LANG }] }];
-      const r = await G.ask(reqContents,
-        { system: g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, json: true, onPart: () => {} });
+      const SYS = g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.";
+      const r = await G.ask(reqContents, { system: SYS, web: false, json: true, onPart: () => {} });
       plan = readScript(r.text);
-      if (!plan) { // cut off or broken: try once more
-        $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script adhoori aayi, dobara likhwa raha hoon…';
-        const r2 = await G.ask(reqContents, { system: g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, json: true, onPart: () => {} });
+      let why = `${r.finish || "?"}, ${String(r.text || "").length} akshar`;
+      if (!plan) { // cut off or broken: try once more, shorter and flat
+        $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script adhoori aayi, chhoti karke dobara likhwa raha hoon…';
+        const fewer = Math.max(10, Math.round(nl * 0.6));
+        const again = [{ role: "user", parts: reqContents[0].parts.concat([{ text: g
+          ? `\n\nIMPORTANT: keep it to about ${fewer} lines. Put ALL lines in ONE flat top-level "lines" array (no "scenes" nesting), each line an object with "who" ("A","B" or "N") and "text". Keep every text short. Close the JSON properly.`
+          : `\n\nZAROORI: sirf lagbhag ${fewer} lines. Saari lines EK seedhi top-level "lines" array mein (scenes ke andar nahi), har line mein "who" ("A","B" ya "N") aur "text". Har text chhota. JSON poora band karo.` }]) }];
+        const r2 = await G.ask(again, { system: SYS, web: false, json: true, onPart: () => {} });
         plan = readScript(r2.text);
+        why += ` / ${r2.finish || "?"}, ${String(r2.text || "").length} akshar`;
       }
-      if (!plan) throw new Error("AI ki script do baar adhoori aayi — thodi der baad dobara dabao, ya Lambai chhoti karo");
+      if (!plan) throw new Error(`AI ki script do baar adhoori aayi (${why}) — thodi der baad dobara dabao, ya Lambai chhoti karo`);
       if (style === "cartoon" || isK) {
         const okD0 = d => (DRESS[String(d || "").toLowerCase()] ? String(d).toLowerCase() : "");
-        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^n/i.test(l.who || "") ? "N" : /^b/i.test(l.who || "") ? "B" : "A",
+        const lc = x => String(x || "").trim().toLowerCase(), WHO = w => { const v = lc(w); return v === lc(nB) || v === "b" ? "B" : v === lc(nA) || v === "a" ? "A" : /^(n$|narrat|kahani|sutra)/.test(v) ? "N" : /^b\b/.test(v) ? "B" : "A"; };
+        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: WHO(l.who),
           dA: l.dressA != null && l.dressA !== "" ? okD0(l.dressA) : null, dB: l.dressB != null && l.dressB !== "" ? okD0(l.dressB) : null, narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60), mood: ["funny", "serious", "daant", "shayari"].includes(String(l.mood || "").toLowerCase()) ? String(l.mood).toLowerCase() : "",
           scene: SCENES[String(l.scene || "").toLowerCase()] ? String(l.scene).toLowerCase() : "" }));
         const okD = d => (DRESS[String(d || "").toLowerCase()] ? String(d).toLowerCase() : "");
