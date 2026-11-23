@@ -1,7 +1,7 @@
 // Screens, look, back button, update check.
 "use strict";
 const App = (() => {
-  const VIEWS = { chat: () => Chat.render(), cases: () => Cases.render(), tools: () => Tools.render(), settings: () => Settings.render(), monitor: () => Monitor.render(), cdr: () => CDR.render(), cctv: () => CCTV.render() , finance: () => Finance.render(), health: () => Health.render(), video: () => Video.render(), channel: () => Channel.render(), trends: () => Trends.render() };
+  const VIEWS = { chat: () => Chat.render(), cases: () => Cases.render(), tools: () => Tools.render(), settings: () => Settings.render(), monitor: () => Monitor.render(), cdr: () => CDR.render(), cctv: () => CCTV.render() , finance: () => Finance.render(), health: () => Health.render(), video: () => Video.render("in"), global: () => Video.render("g"), channel: () => Channel.render(), trends: () => Trends.render() };
   let current = "chat";
 
   function go(v) {
@@ -45,7 +45,7 @@ const App = (() => {
   // Android back button: close popup -> go to chat -> leave app
   window.onBack = function () {
     if (!$("#sheet").hidden) { closeSheet(); return true; }
-    if (["cdr", "cctv", "finance", "health", "video", "channel", "trends"].includes(current)) { go("tools"); return true; }
+    if (["cdr", "cctv", "finance", "health", "video", "global", "channel", "trends"].includes(current)) { go("tools"); return true; }
     if (current !== "chat") { go("chat"); return true; }
     return false;
   };
