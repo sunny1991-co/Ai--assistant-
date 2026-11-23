@@ -251,6 +251,7 @@ public class MainActivity extends FragmentActivity {
 
     @Override
     protected void onDestroy() {
+        try { stopService(new Intent(this, VideoService.class)); } catch (Exception ignored) { }
         if (tts != null) tts.shutdown();
         super.onDestroy();
     }
@@ -469,6 +470,23 @@ public class MainActivity extends FragmentActivity {
         @JavascriptInterface
         public void keepScreenOn(boolean on) {
             runOnUiThread(() -> web.setKeepScreenOn(on));
+        }
+
+        /** While a video is being made: keep the app and its page alive if the owner switches apps. */
+        @JavascriptInterface
+        public void videoWork(boolean on) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(MainActivity.this, VideoService.class);
+                try {
+                    if (on) {
+                        if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+                        if (Build.VERSION.SDK_INT >= 26) web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
+                    } else {
+                        stopService(i);
+                        if (Build.VERSION.SDK_INT >= 26) web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true);
+                    }
+                } catch (Exception ignored) { }
+            });
         }
 
         @JavascriptInterface

@@ -25,11 +25,24 @@ const Video = (() => {
 
   // 🤖 Human-like AI voice (Gemini TTS, free tier). Returns an ArrayBuffer (WAV) or throws.
   const ttsCache = new Map();
+  const idb = (() => {
+    let dbp = null;
+    const open = () => dbp || (dbp = new Promise((ok, no) => { try { const r = indexedDB.open("sahayak-tts", 1); r.onupgradeneeded = () => r.result.createObjectStore("a"); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); } catch (e) { no(e); } }));
+    const tx = (mode, fn) => open().then(db => new Promise((ok, no) => { const t = db.transaction("a", mode), st = t.objectStore("a"), r = fn(st); t.oncomplete = () => ok(r && r.result); t.onerror = () => no(t.error); }));
+    return {
+      get: k => tx("readonly", st => st.get(k)).catch(() => null),
+      put: (k, v) => tx("readwrite", st => st.put({ v, t: Date.now() }, k)).catch(() => {}),
+      prune: () => tx("readwrite", st => { const r = st.openCursor(), old = Date.now() - 20 * 864e5; r.onsuccess = () => { const c = r.result; if (!c) return; if (!c.value || c.value.t < old) c.delete(); c.continue(); }; }).catch(() => {}),
+    };
+  })();
+  setTimeout(() => idb.prune(), 8000);
   async function aiVoice(text, voice, who) {
     const ck = (EN() ? "en|" + (who || "") + "|" : "hi|") + voice + "|" + text;
     if (ttsCache.has(ck)) return ttsCache.get(ck).slice(0);
+    const saved = await idb.get(ck);
+    if (saved && saved.v) { ttsCache.set(ck, saved.v.slice(0)); return saved.v.slice(0); }
     const buf = await aiVoiceRaw(text, voice, who);
-    ttsCache.set(ck, buf.slice(0));
+    ttsCache.set(ck, buf.slice(0)); idb.put(ck, buf.slice(0));
     return buf;
   }
   async function aiVoiceRaw(text, voice, who) {
@@ -144,11 +157,22 @@ const Video = (() => {
     "How India's court system works in 5 minutes", "Why court cases in India take so long", "Famous Indian Supreme Court cases, simply explained",
     "What happens after an arrest in India?", "Is your phone listening to you? Privacy basics", "Identity theft: first steps to protect yourself",
   ];
+  // keep the script safe across app restarts (own photos/recordings can't be kept)
+  function savePlan() {
+    if (!plan) return;
+    try { S.set(K("vPlan"), JSON.parse(JSON.stringify(plan, (k, v) => (k === "photo" && v && v.own ? null : v)))); } catch (e) { /* ignore */ }
+  }
+  function restorePlan() {
+    if (plan) return;
+    const p = S.get(K("vPlan"), null);
+    if (p && Array.isArray(p.slides) && p.slides.length) { plan = p; plan.slides.forEach(x => { if (x.photo) loadImg(x.photo.url); }); }
+  }
   function render(m) {
     if (m && m !== mode) {
       plans[mode] = plan; mode = m; plan = plans[mode] || null;
       Object.keys(voices).forEach(k => delete voices[k]); Object.keys(photos).forEach(k => delete photos[k]);
     }
+    restorePlan();
     if (mode === "g") return renderGlobal();
     $("#view").innerHTML = `<div class="wrap"><h2 style="margin:6px 0">🎬 Video banao</h2>
       ${(() => { const mk = S.get("vMaking", null); if (!mk) return ""; S.del("vMaking"); S.set("vLow", true);
@@ -267,6 +291,7 @@ const Video = (() => {
       Object.keys(voices).forEach(k => delete voices[k]);
       Object.keys(photos).forEach(k => delete photos[k]);
       $("#vmsg").textContent = "✅ Script taiyaar" + (g ? ` (format: ${{ qa: "sawaal-jawaab", myth: "myth vs fact", top: "top 5", story: "kahani" }[fmt] || "Hindi lesson"})` : "") + " — neeche padh ke sudhaar sakte ho";
+      savePlan();
       drawEditor();
       if (plan.style === "cartoon") findPhotos();
     } catch (e) { $("#vmsg").textContent = "❌ " + (e.message || "Script nahi bani — dobara try karo"); }
@@ -316,6 +341,7 @@ const Video = (() => {
         <div id="vprog" class="small" style="margin-top:6px"></div>
         <p class="muted small">Video banne mein utna hi time lagta hai jitni lambi video hai (3 min video ≈ 3-4 min). Tab tak screen chalu rakho. App chhodoge to video <b>ruk jaayegi</b> aur wapas aate hi wahin se chalegi. Awaaz: ⚙️ Settings mein chuni Indian awaaz.</p></div>`;
     $$("[data-copy]").forEach(b => b.onclick = () => copyText($("#" + b.dataset.copy).value));
+    $("#vedit").onchange = () => { try { readEdits(); } catch (e) { /* ignore */ } };
     $("#vthumb").onclick = saveThumb;
     $$("[data-rec]").forEach(b => b.onclick = () => recordSlide(+b.dataset.rec));
     $$("[data-pic]").forEach(b => b.onclick = () => pickPhoto(+b.dataset.pic));
@@ -454,7 +480,8 @@ const Video = (() => {
     } catch (e) { out.textContent = "❌ " + (e.message || "Jaanch nahi hui"); }
   }
 
-  function readEdits() {
+  function readEdits() { readEdits0(); savePlan(); }
+  function readEdits0() {
     const p = plan;
     p.title = $("#vt").value; p.description = $("#vd").value; p.tags = $("#vg").value.split(",").map(x => x.trim()).filter(Boolean); p.thumbnail_text = $("#vth").value;
     if (p.style === "cartoon") { p.slides.forEach((s, i) => { s.who = $(`[data-who="${i}"]`).value; s.heading = $(`[data-h="${i}"]`).value.trim(); s.narration = $(`[data-n="${i}"]`).value.trim(); }); return; }
@@ -912,7 +939,13 @@ const Video = (() => {
     const cartoon = plan.style === "cartoon";
     if (!cartoon && !IS_APP && !S.get("vVoice", "ai:Charon").startsWith("ai:")) { toast("Laptop pe 🤖 AI awaaz chuno (phone ki awaaz sirf phone app mein)"); return; }
     readEdits(); busy = true; if (IS_APP) window.Native.keepScreenOn(true);
-    const prog = $("#vprog"), say = m => { prog.innerHTML = m; };
+    if (IS_APP && window.Native.videoWork) window.Native.videoWork(true);
+    // big notice on top while working
+    const cover = document.createElement("div"); cover.id = "vbusy";
+    cover.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:50;padding:12px 16px;background:#1d2a44;color:#fff;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.3)";
+    cover.innerHTML = '🎬 <b>Video ban rahi hai</b> — <span id="vbusyt">shuru…</span><br><small>Doosra app mat kholo. Khologe to video ruk jaayegi, aur Sahayak par wapas aate hi wahin se chalegi.</small>';
+    document.body.appendChild(cover);
+    const prog = $("#vprog"), say = m => { prog.innerHTML = m; const t = $("#vbusyt"); if (t) t.innerHTML = m.replace(/<br>[\s\S]*$/, ""); };
     const stage = st => S.set("vMaking", { stage: st, at: Date.now() }); // survives a crash → shown next time
     let onVis = null;
     try {
@@ -995,6 +1028,8 @@ const Video = (() => {
     } catch (e) { say("❌ " + (e.message || "Video nahi bani")); S.del("vMaking"); }
     if (onVis) document.removeEventListener("visibilitychange", onVis);
     busy = false; if (IS_APP) window.Native.keepScreenOn(false);
+    if (IS_APP && window.Native.videoWork) window.Native.videoWork(false);
+    const cv = $("#vbusy"); if (cv) cv.remove();
   }
 
   return { render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, "slide", s, 0.5, 2, 8, "Kanoon Aasaan", tsec, m); } };
