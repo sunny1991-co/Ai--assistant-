@@ -58,7 +58,8 @@ import java.util.Set;
 public class MainActivity extends FragmentActivity {
     static final String HOST = "appassets.androidplatform.net";
     static final String START = "https://" + HOST + "/assets/www/index.html";
-    static final int REQ_FILE = 11, REQ_VOICE = 12, REQ_NOTIFY = 13;
+    static final int REQ_FILE = 11, REQ_VOICE = 12, REQ_NOTIFY = 13, REQ_MIC = 14;
+    private android.webkit.PermissionRequest pendingMic;
     static final int AUTH = BiometricManager.Authenticators.BIOMETRIC_WEAK
             | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
 
@@ -103,6 +104,20 @@ public class MainActivity extends FragmentActivity {
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
+            /** Microphone for recording the owner's own voice-over (our own page only). */
+            @Override
+            public void onPermissionRequest(android.webkit.PermissionRequest req) {
+                runOnUiThread(() -> {
+                    boolean mine = req.getOrigin() != null && HOST.equals(req.getOrigin().getHost());
+                    boolean audio = false;
+                    for (String r : req.getResources()) if (android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) audio = true;
+                    if (!mine || !audio) { req.deny(); return; }
+                    String[] res = {android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE};
+                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) req.grant(res);
+                    else { pendingMic = req; requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC); }
+                });
+            }
+
             @Override
             public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
                 if (fileCb != null) fileCb.onReceiveValue(null);
@@ -200,6 +215,17 @@ public class MainActivity extends FragmentActivity {
             } catch (Exception ignored) { }
             cb(voiceId, o);
             voiceId = null;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int req, @NonNull String[] perms, @NonNull int[] results) {
+        super.onRequestPermissionsResult(req, perms, results);
+        if (req == REQ_MIC && pendingMic != null) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED)
+                pendingMic.grant(new String[]{android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+            else pendingMic.deny();
+            pendingMic = null;
         }
     }
 
@@ -450,6 +476,7 @@ public class MainActivity extends FragmentActivity {
                 try {
                     if (!(url.startsWith("https://generativelanguage.googleapis.com/") || url.startsWith("https://api.github.com/")
                             || url.startsWith("http://localhost:8787/sahayak/")
+                            || (method.equals("GET") && url.startsWith("https://www.googleapis.com/youtube/v3/"))
                             || (method.equals("GET") && (url.startsWith("https://news.google.com/rss")
                                 || url.startsWith("https://html.duckduckgo.com/html/")))))
                         throw new SecurityException("not allowed");

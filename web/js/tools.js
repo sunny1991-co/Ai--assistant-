@@ -5,6 +5,7 @@ const Tools = (() => {
 
   const TOOLS = [
     { k: "video", i: "🎬", t: "Video banao", s: "YouTube ke liye, Indian awaaz" },
+    { k: "channel", i: "📊", t: "Mera channel", s: "Views, subscribers, agli video kab" },
     { k: "health", i: "❤️", t: "Health", s: "Report, khana, drink ke saath" },
     { k: "finance", i: "💼", t: "Finance Guide", s: "Mere funds + goal ki salah" },
     { k: "draft", i: "✍️", t: "Drafting", s: "Notice, application, RTI…" },
@@ -68,6 +69,7 @@ const Tools = (() => {
     if (k === "finance") { App.go("finance"); return; }
     if (k === "health") { App.go("health"); return; }
     if (k === "video") { App.go("video"); return; }
+    if (k === "channel") { App.go("channel"); return; }
     if (k === "doc") { Chat.start("Is document/photo ka saar do: 1) ye kya hai, 2) mukhya baatein points mein, 3) naam, tareekhein, rakam, dharayein (sections), 4) mere liye aage kya karna zaroori hai.", { pickFile: true, web: false }); return; }
     if (k === "ocr") { Chat.start("Is photo/PDF mein jo likha hai, wo poora text jaisa ka taisa likh do (Hindi ho to Hindi mein, English ho to English mein). Kuch mat badlo, sirf saaf karke likho.", { pickFile: true, web: false }); return; }
     if (k === "court") {
