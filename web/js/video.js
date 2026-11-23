@@ -108,6 +108,8 @@ const Video = (() => {
 
   function render() {
     $("#view").innerHTML = `<div class="wrap"><h2 style="margin:6px 0">🎬 Video banao</h2>
+      ${(() => { const mk = S.get("vMaking", null); if (!mk) return ""; S.del("vMaking"); S.set("vLow", true);
+        return `<div class="banner" style="border-color:#e66">⚠️ Pichhli video beech mein ruk gayi thi (ruki: <b>${esc(mk.stage || "?")}</b>). Aksar phone ki memory kam padne se hota hai. Maine <b>📉 Halki quality</b> chalu kar di hai — dobara banao, aur banate waqt app mat chhodna.</div>`; })()}
       <div class="banner">✅ Sirf apna original content (doosron ki video/gaana mat daalna). ⚖️ Peedit ka naam kabhi nahi, judge pe ilzaam nahi, parties "A aur B". Upload se pehle script ek baar khud padh lena.</div>
       <div class="card">
         <label class="field">❓ Logon ka sawaal<input id="vq" placeholder="Jaise: Kya police bina warrant giraftar kar sakti hai?"></label>
@@ -200,6 +202,7 @@ const Video = (() => {
           ${AI_VOICES.map(([k, t]) => `<option value="ai:${k}" ${S.get("vVoice", "ai:Charon") === "ai:" + k ? "selected" : ""}>🤖 AI insaan jaisi — ${t}</option>`).join("")}
           <option value="phone" ${S.get("vVoice", "") === "phone" ? "selected" : ""}>📱 Phone ki Indian awaaz</option></select></label>`}
         <button class="btn${p.style === "cartoon" ? " primary" : ""}" id="vtest">${p.style === "cartoon" ? "▶️ Pehle namoona dekho-suno (shuru ki 3 line)" : "▶️ Awaaz suno"}</button>
+        <label class="row small"><input type="checkbox" id="vlow" ${S.get("vLow", (navigator.deviceMemory || 8) <= 4) ? "checked" : ""}> 📉 Halki quality (purana/kam RAM phone, ya app blank ho jaye to)</label>
         <label class="row small"><input type="checkbox" id="vmusic" ${S.get("vMusic", true) ? "checked" : ""}> 🎵 Peeche halka music (apna banaya, copyright-free)</label>
         ${p.style === "cartoon" ? "" : `<div class="banner small">💡 Video insaan jaisi lage, iske liye: 1) har slide pe <b>apni awaaz</b> record karo (sabse bada fark), 2) <b>apni kheenchi photo</b> lagao (court, thana, kagaz, apna haath — kisi ka chehra nahi), 3) script ko apne shabdon mein thoda badlo.</div>`}
         <button class="btn" id="vcheck" style="margin-top:8px">🔍 AI se script jaanchwao</button>
@@ -211,13 +214,14 @@ const Video = (() => {
         </div>
         <button class="btn primary wide" id="vmake" style="margin-top:8px" disabled>🎬 Video banao</button>
         <div id="vprog" class="small" style="margin-top:6px"></div>
-        <p class="muted small">Video banne mein utna hi time lagta hai jitni lambi video hai (3 min video ≈ 3-4 min). Tab tak screen chalu rakho aur app band mat karo. Awaaz: ⚙️ Settings mein chuni Indian awaaz.</p></div>`;
+        <p class="muted small">Video banne mein utna hi time lagta hai jitni lambi video hai (3 min video ≈ 3-4 min). Tab tak screen chalu rakho. App chhodoge to video <b>ruk jaayegi</b> aur wapas aate hi wahin se chalegi. Awaaz: ⚙️ Settings mein chuni Indian awaaz.</p></div>`;
     $$("[data-copy]").forEach(b => b.onclick = () => copyText($("#" + b.dataset.copy).value));
     $("#vthumb").onclick = saveThumb;
     $$("[data-rec]").forEach(b => b.onclick = () => recordSlide(+b.dataset.rec));
     $$("[data-pic]").forEach(b => b.onclick = () => pickPhoto(+b.dataset.pic));
     $$("[data-unpic]").forEach(b => b.onclick = () => { readEdits(); delete photos[+b.dataset.unpic]; drawEditor(); });
     $("#vmusic").onchange = e => S.set("vMusic", e.target.checked);
+    $("#vlow").onchange = e => S.set("vLow", e.target.checked);
     $$("[data-play]").forEach(b => b.onclick = () => { const a = new Audio(URL.createObjectURL(voices[+b.dataset.play].blob)); a.play(); });
     $("#vmake").onclick = make;
     const gate = () => { $("#vmake").disabled = $$(".vok").some(c => !c.checked); };
@@ -574,6 +578,7 @@ const Video = (() => {
     return out.map(r => Math.min(1, r / (mx * 0.7)));
   }
 
+  function b64(u8) { let s = ""; for (let k = 0; k < u8.length; k += 32768) s += String.fromCharCode.apply(null, u8.subarray(k, k + 32768)); return btoa(s); }
   async function saveBlob(blob, name, mime) {
     if (!IS_APP) {
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); return true;
@@ -618,11 +623,13 @@ const Video = (() => {
     if (!cartoon && !IS_APP && !S.get("vVoice", "ai:Charon").startsWith("ai:")) { toast("Laptop pe 🤖 AI awaaz chuno (phone ki awaaz sirf phone app mein)"); return; }
     readEdits(); busy = true; if (IS_APP) window.Native.keepScreenOn(true);
     const prog = $("#vprog"), say = m => { prog.innerHTML = m; };
+    const stage = st => S.set("vMaking", { stage: st, at: Date.now() }); // survives a crash → shown next time
+    let onVis = null;
     try {
       const ac = new (window.AudioContext || window.webkitAudioContext)();
       const bufs = []; let fallbackNote = "";
       for (let i = 0; i < plan.slides.length; i++) {
-        say(`🔊 Awaaz taiyaar ho rahi hai… ${i + 1}/${plan.slides.length}`);
+        say(`🔊 Awaaz taiyaar ho rahi hai… ${i + 1}/${plan.slides.length}`); stage(`awaaz ${i + 1}/${plan.slides.length}`);
         if (voices[i]) { bufs.push(await ac.decodeAudioData(await voices[i].blob.arrayBuffer())); continue; }
         const vv = cartoon ? "ai:" + S.get(plan.slides[i].who === "B" ? "vVoiceB" : "vVoiceA", plan.slides[i].who === "B" ? "Charon" : "Puck") : S.get("vVoice", "ai:Charon"), text = plan.slides[i].narration || plan.slides[i].heading || " ";
         if (vv.startsWith("ai:")) {
@@ -634,15 +641,25 @@ const Video = (() => {
         const bin = atob(r.b64), arr = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
         bufs.push(await ac.decodeAudioData(arr.buffer));
       }
-      const w = plan.short ? 720 : W, h = plan.short ? 1280 : H;
+      const low = !!S.get("vLow", (navigator.deviceMemory || 8) <= 4), fps = low ? 24 : 30;
+      const w = plan.short ? (low ? 540 : 720) : (low ? 960 : W), h = plan.short ? (low ? 960 : 1280) : (low ? 540 : H);
       const c = document.createElement("canvas"); c.width = w; c.height = h;
       const ctx = c.getContext("2d");
       const dest = ac.createMediaStreamDestination();
-      const stream = new MediaStream([...c.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+      const stream = new MediaStream([...c.captureStream(fps).getVideoTracks(), ...dest.stream.getAudioTracks()]);
       const mime = ["video/mp4;codecs=avc1,mp4a", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
       if (!mime) throw new Error("Is phone mein video recording nahi chalti");
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2500000 });
-      const chunks = []; rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: low ? 1200000 : 2200000 });
+      const ext = mime.startsWith("video/mp4") ? "mp4" : "webm", base = mime.split(";")[0];
+      const name = "video-" + ymd() + "-" + Date.now().toString(36).slice(-4) + "." + ext;
+      // phone: write each second's piece straight to storage, so the whole video never sits in memory
+      const chunks = []; let wq = Promise.resolve(), size = 0, firstW = true, wfail = false;
+      const put = async (u8, last) => { const f = firstW; firstW = false; const r = await nativeCall("saveChunk", name, base, b64(u8), f, last); if (!r.ok) wfail = true; };
+      rec.ondataavailable = e => {
+        if (!e.data.size) return; size += e.data.size;
+        if (!IS_APP) { chunks.push(e.data); return; }
+        const d = e.data; wq = wq.then(async () => { const u8 = new Uint8Array(await d.arrayBuffer()); for (let i = 0; i < u8.length; i += 768 * 1024) await put(u8.subarray(i, i + 768 * 1024), false); });
+      };
       // timeline: title 2.5s, slides (voice + 0.6s), end 2.5s
       const segs = [{ kind: "title", d: plan.short ? 1.2 : 2.5 }];
       bufs.forEach((b, i) => segs.push({ kind: "slide", i, d: b.duration + (cartoon ? 0.3 : 0.6), buf: b, env: cartoon ? envelope(b) : null }));
@@ -651,7 +668,13 @@ const Video = (() => {
       const ch = S.get("vChannel", "");
       if (cartoon) cartoonFrame(ctx, w, h, "title", plan.title, 0, 0, 1, ch, 0, 0); else frame(ctx, w, h, "title", plan.title, 0, 0, 1, ch);
       rec.start(1000);
-      const t0 = ac.currentTime + 0.3;
+      // leaving the app pauses the video; coming back continues from the same point
+      onVis = () => {
+        if (document.hidden) { try { rec.pause(); } catch (e) {} ac.suspend(); }
+        else { ac.resume(); try { rec.resume(); } catch (e) {} }
+      };
+      document.addEventListener("visibilitychange", onVis);
+      const t0 = ac.currentTime + 0.3; let lastSay = -1;
       if (S.get("vMusic", true)) music(ac, dest, t0, total);
       segs.forEach(s => { if (s.buf) { const src = ac.createBufferSource(); src.buffer = s.buf; src.connect(dest); src.start(t0 + s.start); } });
       await new Promise(done => {
@@ -665,18 +688,21 @@ const Video = (() => {
             cartoonFrame(ctx, w, h, s.kind, s.kind === "slide" ? plan.slides[s.i] : plan.title, s.kind === "slide" ? Math.min(1, (el - s.start) / s.buf.duration) : p, s.i || 0, plan.slides.length, ch, el, m);
           } else if (s.kind === "slide") frame(ctx, w, h, "slide", plan.slides[s.i], p, s.i, plan.slides.length, ch, el);
           else frame(ctx, w, h, s.kind, plan.title, p, 0, 1, ch, el);
-          say(`🎬 Video ban rahi hai… ${Math.floor(Math.max(0, el))}/${Math.ceil(total)} sec — screen chalu rakho`);
-        }, 1000 / 30);
+          const sec = Math.floor(Math.max(0, el));
+          if (sec !== lastSay) { lastSay = sec; say(`🎬 Video ban rahi hai… ${sec}/${Math.ceil(total)} sec — screen chalu rakho, app mat chhodo`); if (sec % 5 === 0) stage(`video ${sec}/${Math.ceil(total)} sec`); }
+        }, 1000 / fps);
       });
       await new Promise(r => { rec.onstop = r; rec.stop(); });
-      const ext = mime.startsWith("video/mp4") ? "mp4" : "webm";
-      const blob = new Blob(chunks, { type: mime.split(";")[0] });
-      say("💾 Save ho raha hai…");
-      const name = "video-" + ymd() + "-" + Date.now().toString(36).slice(-4) + "." + ext;
-      const ok = await saveBlob(blob, name, mime.split(";")[0]);
-      say(ok ? `✅ Video taiyaar: <b>Downloads/Sahayak/${name}</b> (${(blob.size / 1048576).toFixed(1)} MB). YouTube app mein upload karo — title/description upar se copy karo.${fallbackNote ? "<br>⚠️ " + fallbackNote : ""}<br>ℹ️ Upload karte waqt YouTube puchhe "altered/synthetic content?" — AI awaaz ho to imaandaari se batana.` : "❌ Save nahi hua");
+      document.removeEventListener("visibilitychange", onVis); onVis = null;
+      say("💾 Save ho raha hai…"); stage("save");
+      let ok;
+      if (IS_APP) { await wq; await put(new Uint8Array(0), true); ok = !wfail; }
+      else ok = await saveBlob(new Blob(chunks, { type: base }), name, base);
+      S.del("vMaking");
+      say(ok ? `✅ Video taiyaar: <b>Downloads/Sahayak/${name}</b> (${(size / 1048576).toFixed(1)} MB). YouTube app mein upload karo — title/description upar se copy karo.${fallbackNote ? "<br>⚠️ " + fallbackNote : ""}<br>ℹ️ Upload karte waqt YouTube puchhe "altered/synthetic content?" — AI awaaz ho to imaandaari se batana.` : "❌ Save nahi hua");
       ac.close();
-    } catch (e) { say("❌ " + (e.message || "Video nahi bani")); }
+    } catch (e) { say("❌ " + (e.message || "Video nahi bani")); S.del("vMaking"); }
+    if (onVis) document.removeEventListener("visibilitychange", onVis);
     busy = false; if (IS_APP) window.Native.keepScreenOn(false);
   }
 

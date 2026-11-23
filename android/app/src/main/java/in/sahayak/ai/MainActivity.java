@@ -95,6 +95,19 @@ public class MainActivity extends FragmentActivity {
                 return loader.shouldInterceptRequest(req.getUrl());
             }
 
+            // Page process died (mostly phone memory full while making a video):
+            // rebuild the screen instead of leaving it blank or crashing the app.
+            @Override
+            public boolean onRenderProcessGone(WebView v, android.webkit.RenderProcessGoneDetail d) {
+                try {
+                    android.view.ViewGroup p = (android.view.ViewGroup) v.getParent();
+                    if (p != null) p.removeView(v);
+                    v.destroy();
+                } catch (Exception ignored) { }
+                recreate();
+                return true;
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
                 Uri u = req.getUrl();
