@@ -174,7 +174,7 @@ const Video = (() => {
     }
     restorePlan();
     if (mode === "g") return renderGlobal();
-    $("#view").innerHTML = `<div class="wrap"><h2 style="margin:6px 0">🎬 Video banao</h2>
+    $("#view").innerHTML = `<div class="wrap"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:6px 0">🎬 Video banao</h2>${IS_APP ? '<button class="btn" id="vmine">📁 Meri videos</button>' : ""}</div>
       ${(() => { const mk = S.get("vMaking", null); if (!mk) return ""; S.del("vMaking"); S.set("vLow", true);
         return `<div class="banner" style="border-color:#e66">⚠️ Pichhli video beech mein ruk gayi thi (ruki: <b>${esc(mk.stage || "?")}</b>). Aksar phone ki memory kam padne se hota hai. Maine <b>📉 Halki quality</b> chalu kar di hai — dobara banao, aur banate waqt app mat chhodna.</div>`; })()}
       <div class="banner">✅ Sirf apna original content (doosron ki video/gaana mat daalna). ⚖️ Peedit ka naam kabhi nahi, judge pe ilzaam nahi, parties "A aur B". Upload se pehle script ek baar khud padh lena.</div>
@@ -194,12 +194,28 @@ const Video = (() => {
       </div>
       <div id="vedit"></div></div>`;
     $("#vplan").onclick = makePlan;
+    if ($("#vmine")) $("#vmine").onclick = myVideos;
     const sn = () => { $("#vnames").hidden = $("#vstyle").value !== "cartoon"; };
     $("#vstyle").onchange = () => { S.set(K("vStyle"), $("#vstyle").value); sn(); }; sn();
     $$("[data-idea]").forEach(b => b.onclick = () => { $("#vq").value = b.dataset.idea; });
     if (plan) drawEditor();
   }
 
+  // 📁 list of videos this app made, with play / share
+  async function myVideos() {
+    openSheet(`<h3>📁 Meri videos</h3><div id="mvl"><span class="dots"><i></i><i></i><i></i></span></div>
+      <p class="small muted">Gallery mein bhi milengi: <b>Movies → Sahayak</b> (purani: Download → Sahayak)</p>
+      <button class="btn" id="mvx">Band karo</button>`, root => { $("#mvx", root).onclick = closeSheet; });
+    const r = await nativeCall("listMedia");
+    const box = $("#mvl"); if (!box) return;
+    const items = (r && r.items) || [];
+    if (!items.length) { box.innerHTML = '<p class="muted">Abhi koi video nahi mili.</p>'; return; }
+    box.innerHTML = items.slice(0, 40).map((v, i) => `<div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--line,#ddd);padding:6px 0">
+      <div class="small"><b>${esc(v.name)}</b><br>${new Date(v.date * 1000).toLocaleString("hi-IN", { dateStyle: "medium", timeStyle: "short" })} · ${(v.size / 1048576).toFixed(1)} MB</div>
+      <div class="row"><button class="btn" data-mvp="${i}">▶️</button><button class="btn" data-mvs="${i}">📤</button></div></div>`).join("");
+    $$("[data-mvp]").forEach(b => b.onclick = () => { const v = items[+b.dataset.mvp]; window.Native.openMedia(v.uri, v.mime); });
+    $$("[data-mvs]").forEach(b => b.onclick = () => { const v = items[+b.dataset.mvs]; window.Native.shareMedia(v.uri, v.mime); });
+  }
   function crashBanner() {
     const mk = S.get("vMaking", null); if (!mk) return ""; S.del("vMaking"); S.set("vLow", true);
     return `<div class="banner" style="border-color:#e66">⚠️ Pichhli video beech mein ruk gayi thi (ruki: <b>${esc(mk.stage || "?")}</b>). Aksar phone ki memory kam padne se hota hai. Maine <b>📉 Halki quality</b> chalu kar di hai — dobara banao, aur banate waqt app mat chhodna.</div>`;
@@ -207,7 +223,7 @@ const Video = (() => {
   // 🌍 global English channel: Leo (curious traveler) + Priya (Indian friend)
   function renderGlobal() {
     const cat = S.get("vCat_g", "india");
-    $("#view").innerHTML = `<div class="wrap"><h2 style="margin:6px 0">🌍 Global channel <small class="muted">(English)</small></h2>
+    $("#view").innerHTML = `<div class="wrap"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:6px 0">🌍 Global channel <small class="muted">(English)</small></h2>${IS_APP ? '<button class="btn" id="vmine">📁 Meri videos</button>' : ""}</div>
       ${crashBanner()}
       <div class="banner">✅ Sirf original content. Tathya sahi hon, kisi desh/dharm/samuday ka mazaak nahi. ⚠️ YouTube ek jaisi template wali videos ki kamaai rok deta hai — isliye har baar topic, format aur 2-3 line apni taraf se badlo.</div>
       <div class="card">
@@ -231,6 +247,7 @@ const Video = (() => {
       $("#vfmt").disabled = c === "hindi";
     };
     $("#vcat").onchange = chips; chips();
+    if ($("#vmine")) $("#vmine").onclick = myVideos;
     $("#vplan").onclick = makePlan;
     if (plan) drawEditor();
   }
@@ -906,6 +923,7 @@ const Video = (() => {
       let s = ""; for (let k = 0; k < part.length; k += 32768) s += String.fromCharCode.apply(null, part.subarray(k, k + 32768));
       const r = await nativeCall("saveChunk", name, mime, btoa(s), i === 0, i + CH >= buf.length);
       if (!r.ok) return false;
+      if (r.uri) return r.uri;
       if (i + CH >= buf.length) break;
     }
     return true;
@@ -923,7 +941,7 @@ const Video = (() => {
       wrap(x, plan.thumbnail_text || plan.title || "", 640, 270, 580, 92, 4);
       x.fillStyle = "#fff"; x.font = "34px sans-serif"; x.fillText(S.get(K("vChannel"), ""), 640, 530);
       const blob = await new Promise(r => c.toBlob(r, "image/png"));
-      toast(await saveBlob(blob, "thumbnail-" + ymd() + ".png", "image/png") ? "✅ Thumbnail: Downloads/Sahayak" : "Save nahi hua");
+      toast(await saveBlob(blob, "thumbnail-" + ymd() + ".png", "image/png") ? (IS_APP ? "✅ Thumbnail: Gallery → Pictures/Sahayak" : "✅ Thumbnail download ho gaya") : "Save nahi hua");
       return;
     }
     bg(x, 1280, 720, 10);
@@ -931,7 +949,7 @@ const Video = (() => {
     wrap(x, plan.thumbnail_text || plan.title || "", 640, 300, 1150, 110, 3);
     x.fillStyle = "#fff"; x.font = "36px sans-serif"; x.fillText(S.get(K("vChannel"), ""), 640, 660);
     const blob = await new Promise(r => c.toBlob(r, "image/png"));
-    toast(await saveBlob(blob, "thumbnail-" + ymd() + ".png", "image/png") ? "✅ Thumbnail: Downloads/Sahayak" : "Save nahi hua");
+    toast(await saveBlob(blob, "thumbnail-" + ymd() + ".png", "image/png") ? (IS_APP ? "✅ Thumbnail: Gallery → Pictures/Sahayak" : "✅ Thumbnail download ho gaya") : "Save nahi hua");
   }
 
   async function make() {
@@ -977,8 +995,8 @@ const Video = (() => {
       const ext = mime.startsWith("video/mp4") ? "mp4" : "webm", base = mime.split(";")[0];
       const name = "video-" + ymd() + "-" + Date.now().toString(36).slice(-4) + "." + ext;
       // phone: write each second's piece straight to storage, so the whole video never sits in memory
-      const chunks = []; let wq = Promise.resolve(), size = 0, firstW = true, wfail = false;
-      const put = async (u8, last) => { const f = firstW; firstW = false; const r = await nativeCall("saveChunk", name, base, b64(u8), f, last); if (!r.ok) wfail = true; };
+      const chunks = []; let wq = Promise.resolve(), size = 0, firstW = true, wfail = false, outUri = "";
+      const put = async (u8, last) => { const f = firstW; firstW = false; const r = await nativeCall("saveChunk", name, base, b64(u8), f, last); if (!r.ok) wfail = true; if (r.uri) outUri = r.uri; };
       rec.ondataavailable = e => {
         if (!e.data.size) return; size += e.data.size;
         if (!IS_APP) { chunks.push(e.data); return; }
@@ -1023,7 +1041,11 @@ const Video = (() => {
       if (IS_APP) { await wq; await put(new Uint8Array(0), true); ok = !wfail; }
       else ok = await saveBlob(new Blob(chunks, { type: base }), name, base);
       S.del("vMaking");
-      say(ok ? `✅ Video taiyaar: <b>Downloads/Sahayak/${name}</b> (${(size / 1048576).toFixed(1)} MB). YouTube app mein upload karo — title/description upar se copy karo.${fallbackNote ? "<br>⚠️ " + fallbackNote : ""}<br>ℹ️ Upload karte waqt YouTube puchhe "altered/synthetic content?" — AI awaaz ho to imaandaari se batana.` : "❌ Save nahi hua");
+      const where = IS_APP ? "📁 Gallery → <b>Movies/Sahayak</b> folder (Files app: Movies → Sahayak)" : "💻 Browser ke Downloads mein";
+      say(ok ? `✅ <b>Video taiyaar!</b> ${name} (${(size / 1048576).toFixed(1)} MB)<br>${where}
+        ${IS_APP && outUri ? `<div class="row" style="margin-top:6px"><button class="btn primary" id="vplay">▶️ Video dekho</button><button class="btn" id="vshare">📤 YouTube / WhatsApp par bhejo</button></div>` : ""}
+        <br>YouTube par daalte waqt title/description upar se copy karo.${fallbackNote ? "<br>⚠️ " + fallbackNote : ""}<br>ℹ️ YouTube puchhe "altered/synthetic content?" — AI awaaz ho to imaandaari se batana.` : "❌ Save nahi hua — phone ki storage bhari to nahi?");
+      if (ok && IS_APP && outUri) { $("#vplay").onclick = () => window.Native.openMedia(outUri, base); $("#vshare").onclick = () => window.Native.shareMedia(outUri, base); }
       ac.close();
     } catch (e) { say("❌ " + (e.message || "Video nahi bani")); S.del("vMaking"); }
     if (onVis) document.removeEventListener("visibilitychange", onVis);
