@@ -198,15 +198,16 @@ const Video = (() => {
           <option value="kahani" ${S.get(K("vStyle"), "cartoon") === "kahani" ? "selected" : ""}>🎬 Kahani / short film (narrator + kai jagah)</option>
           <option value="slides" ${S.get(K("vStyle"), "cartoon") === "slides" ? "selected" : ""}>🖼️ Slides + ek awaaz</option></select></label></div>
         <label class="field">🗣️ Bolchaal<select id="vbol"><option value="desi" ${S.get("vBol", "desi") === "desi" ? "selected" : ""}>Desi aam bhasha (kabhi-kabhi halki gaali: saala, kutta)</option><option value="saaf" ${S.get("vBol", "desi") === "saaf" ? "selected" : ""}>Saaf bhasha (koi gaali nahi)</option></select></label>
+        <div class="row" id="vacts"><label class="field" style="flex:1">🎭 Kirdaar A<select id="vaa">${Object.entries(ROSTER).map(([k, r]) => `<option value="${k}" ${S.get(K("vActA"), "pappu") === k ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label><label class="field" style="flex:1">🎭 Kirdaar B<select id="vab">${Object.entries(ROSTER).map(([k, r]) => `<option value="${k}" ${S.get(K("vActB"), "chacha") === k ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label></div>
         <div class="row" id="vnames"><label class="field" style="flex:1">🙋 Sawaal puchne wala<input id="vna" value="${esc(S.get("vNameA", "Pappu"))}"></label>
           <label class="field" style="flex:1">👴 Samjhane wale<input id="vnb" value="${esc(S.get("vNameB", "Chacha"))}"></label></div>
         <button class="btn primary wide" id="vplan">✍️ Script banao</button>
         <div id="vmsg" class="small" style="margin-top:6px"></div>
       </div>
       <div id="vedit"></div></div>`;
-    $("#vplan").onclick = makePlan;
+    $("#vplan").onclick = makePlan; bindActors();
     if ($("#vmine")) $("#vmine").onclick = myVideos;
-    const sn = () => { $("#vnames").hidden = $("#vstyle").value === "slides"; };
+    const sn = () => { $("#vnames").hidden = $("#vacts").hidden = $("#vstyle").value === "slides"; };
     $("#vstyle").onchange = () => { S.set(K("vStyle"), $("#vstyle").value); sn(); }; sn();
     $$("[data-idea]").forEach(b => b.onclick = () => { $("#vq").value = b.dataset.idea; });
     if (plan) drawEditor();
@@ -244,6 +245,7 @@ const Video = (() => {
         <label class="field">📝 Apne notes / pakke tathya (optional)<textarea id="vtopic" rows="3" placeholder="Jo baat zaroor aani chahiye, ya kisi bharosemand source ki line…"></textarea></label>
         <div class="row"><label class="field" style="flex:1">Lambai<select id="vlen">${Object.entries(LENGTHS).map(([k, v]) => `<option value="${k}" ${k === "short" ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
           <label class="field" style="flex:1">Format<select id="vfmt"><option value="auto">🎲 Har baar alag (behtar)</option><option value="qa">💬 Sawaal-jawaab</option><option value="myth">❌✅ Myth vs Fact</option><option value="top">🔢 Top 5</option><option value="story">📖 Kahani</option></select></label></div>
+        <div class="row" id="vacts"><label class="field" style="flex:1">🎭 Kirdaar A<select id="vaa">${Object.entries(ROSTER).map(([k, r]) => `<option value="${k}" ${S.get(K("vActA"), "leo") === k ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label><label class="field" style="flex:1">🎭 Kirdaar B<select id="vab">${Object.entries(ROSTER).map(([k, r]) => `<option value="${k}" ${S.get(K("vActB"), "priya") === k ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label></div>
         <div class="row"><label class="field" style="flex:1">🧳 Sawaal puchne wala<input id="vna" value="${esc(S.get("vNameA_g", "Leo"))}"></label>
           <label class="field" style="flex:1">🙋‍♀️ Samjhane wali<input id="vnb" value="${esc(S.get("vNameB_g", "Priya"))}"></label></div>
         <label class="field">Andaaz<select id="vstyle"><option value="cartoon" ${S.get("vStyle_g", "cartoon") === "cartoon" ? "selected" : ""}>🧑‍🤝‍🧑 Baatcheet (Short ke liye best)</option><option value="kahani" ${S.get("vStyle_g", "cartoon") === "kahani" ? "selected" : ""}>🎬 Kahani / short film (narrator + scenes)</option></select></label>
@@ -258,7 +260,7 @@ const Video = (() => {
       $$("[data-idea]").forEach(b => b.onclick = () => { $("#vq").value = b.dataset.idea; });
       $("#vfmt").disabled = c === "hindi";
     };
-    $("#vcat").onchange = chips; chips();
+    $("#vcat").onchange = chips; chips(); bindActors();
     if ($("#vmine")) $("#vmine").onclick = myVideos;
     $("#vplan").onclick = makePlan;
     if (plan) drawEditor();
@@ -280,6 +282,13 @@ const Video = (() => {
       `and 1-3 serious beats where the topic needs respect or care (mood "serious"). Everything else "normal". Mix the moods so the energy goes up and down. Humor never targets a religion, culture, country, gender or any group.`;
   }
 
+  // picking a different actor also fills in their name and a matching voice
+  function bindActors() {
+    ["A", "B"].forEach(k => { const el = $("#va" + k.toLowerCase()); if (!el) return;
+      el.onchange = () => { const r = ROSTER[el.value]; S.set(K("vAct" + k), el.value); $("#vn" + k.toLowerCase()).value = r[0];
+        S.set(K("vVoice" + k), r[2] ? (k === "A" ? "Kore" : "Aoede") : (k === "A" ? "Puck" : "Charon")); };
+    });
+  }
   async function makePlan() {
     const q = $("#vq").value.trim(), facts = $("#vtopic").value.trim();
     if (q.length < 8 && facts.length < 15) { toast("Sawaal likho ya ek idea chuno"); return; }
@@ -295,6 +304,10 @@ const Video = (() => {
     const nA = ($("#vna").value.trim() || (g ? "Leo" : "Pappu")).slice(0, 20), nB = ($("#vnb").value.trim() || (g ? "Priya" : "Chacha")).slice(0, 20);
     const en = false;
     S.set(K("vNameA"), nA); S.set(K("vNameB"), nB);
+    const actors = { A: $("#vaa") ? $("#vaa").value : DEF_ACT[mode].A, B: $("#vab") ? $("#vab").value : DEF_ACT[mode].B };
+    const fem = k => !!(ROSTER[actors[k]] || [])[2];
+    const GEN = g ? `\n(${nA} is ${fem("A") ? "a woman" : "a man"}; ${nB} is ${fem("B") ? "a woman" : "a man"} — ${ROSTER[actors.B] ? ROSTER[actors.B][1] : ""}.)`
+      : `\n(${nA} ${fem("A") ? "ek aurat/ladki hai — uske liye stri-ling kriya likho (karti hai, gayi)" : "ek aadmi/ladka hai"}; ${nB} ${fem("B") ? "ek aurat hai — stri-ling kriya (kehti hai, samjhaati hai)" : "ek aadmi hai"}, ${ROSTER[actors.B] ? ROSTER[actors.B][1] : ""}.)`;
     const cat = g ? $("#vcat").value : "law";
     let fmt = g ? $("#vfmt").value : "";
     if (fmt === "auto") { const all = Object.keys(GFMT).filter(f => f !== S.get("vFmtLast_g", "")); fmt = all[Math.floor(Math.random() * all.length)]; }
@@ -304,7 +317,7 @@ const Video = (() => {
       `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi; "pakka milega"/"case jeet jaoge" jaisi koi guarantee nahi.`;
     const HEAD = `"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)"`;
     const nl = (isK ? { short: 12, mid: 34, long: 62 } : { short: 8, mid: 18, long: 32 })[len], mins = { short: "45 second", mid: "3 minute", long: "6 minute" }[len];
-    const CARTOON = `YouTube cartoon video ki script banani hai — do original cartoon kirdaar aapas mein baat karte hain (Hindi, aam logon ke liye). Vishay:\n${topic}\n\n` +
+    const CARTOON = `YouTube cartoon video ki script banani hai — do original cartoon kirdaar aapas mein baat karte hain (Hindi, aam logon ke liye). Vishay:\n${topic}${GEN}\n\n` +
       `Kirdaar: A = "${nA}" — aam aadmi, darshak ki tarah sawaal puchta hai, kabhi confuse hota hai, halka mazaak karta hai. B = "${nB}" — samajhdaar bade, dheeraj se aasaan misaal dekar samjhate hain. B vakil NAHI hai — jaankari deta hai, salah nahi; zaroorat pe kehta hai "apne case ke liye vakil se milna".\n` +
       `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
       `Lagbhag ${nl} lines, A aur B baari-baari (kabhi ek hi kirdaar 2 line bhi). Shuru: A ek aam zindagi ki pareshani/sawaal se (pehli line 3 second mein dhyaan khinche). B ki pehli line mein chhota sa: "dekho, ye sirf jaankari hai, kanooni salah nahi". Beech mein: seedha jawab, kanoon/court kya kehta hai (judgment diya ho to naam-saal), kya karein — steps. A beech-beech mein sawaal/shaq kare taaki baat asli lage. Aakhir: B saar + "apne case ke liye vakil se milna, nateeje ki guarantee koi nahi de sakta"; A darshakon se: "aapke saath aisa hua hai? comment mein batao, aur like-subscribe kar do". ` +
@@ -315,20 +328,20 @@ const Video = (() => {
       `ek jagah ${nB} ${nA} ko pyaar se daant lagaye jab wo koi galat/bewakoofi wali baat kare (mood "daant", jaise "arre buddhu!" — apmaan nahi); ` +
       `jahan kanoon, khatra ya kisi ki takleef ki baat ho wahan 1-3 line gambhir (mood "serious") — wahan mazaak bilkul nahi. Baaki "normal". Mood ooper-neeche hota rahe. Apradh ya peedit ki takleef pe kabhi mazaak nahi. ` + RULES;
     const LINE_JSON = `{"who":"A | B | N","text":"(1-2 chhote bolchaal ke vakya)","key":"(board/label ke liye 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","dressA":"(SIRF jab is line se A ki dress badle: ${DRS_LIST}; warna ye field mat do)","dressB":"(waise hi B ke liye)","photo":"(khaali chhodo)"}`;
-    const KAHANI = () => `YouTube ke liye ek CARTOON KAHANI (short film) likho — lagbhag ${mins}, Hindi, aam logon ke liye. Vishay / kahani ka idea:\n${topic}\n\n` +
+    const KAHANI = () => `YouTube ke liye ek CARTOON KAHANI (short film) likho — lagbhag ${mins}, Hindi, aam logon ke liye. Vishay / kahani ka idea:\n${topic}${GEN}\n\n` +
       `Kirdaar: A = "${nA}" (aam aadmi — bhola, jaldi bharosa kar leta hai, galti karta hai, mazaakiya), B = "${nB}" (samajhdaar, kanoon ki AAM jaankari rakhta hai, vakil NAHI), N = narrator (kahani sunane wala — scene badalne aur kahani aage badhane ke liye chhote vakya; har 3-6 line mein ek se zyada nahi). Kahani ke baaki log (thag, dukaandaar, police wala, padosi, afsar) A ya B hi dress badal kar nibhate hain ("dressA"/"dressB"), ya narrator unki baat bata deta hai.\n` +
       `KAHANI KA FORMULA (pakka pakdo): 1) HOOK — pehli 5 second mein musibat ya chaunkane wala pal. 2) Shuruaat — kaun, kahan, kya chahta hai. 3) Musibat — koi thag/dabang fayda uthata hai ya A galti karta hai (mazaak bhi). 4) Kahani ke 25%, 50% aur 75% par ek naya mod/twist. 5) Insaaf sirf KANOONI raaste se (thana, FIR, helpline, consumer forum, court) — B sahi aam jaankari deta hai. 6) Ant — ${nB} ki chhoti APNI 2-line shayari + seekh + darshak se sawaal ("aapke saath aisa hua hai? comment mein batao") + agli kahani ka chhota ishara. ` +
       `Kahani 30-60 second ke hisson mein aage badhe; har hisse mein jagah (scene) ya mood badle; safar ho to car/bike/walk/cycle scene bhi use karo (agar list mein hon). ${nB} ki ek pehchaan wali line 2-3 baar aaye (jaise "Arre buddhu!"). Kahani kaalpanik ho — kisi asli vyakti/ghatna/company ka naam nahi. Apradh, thagi ya police se bachne ki tareef KABHI nahi; galat kaam ka nateeja dikhao. B ki pehli line mein chhota sa: "ye kahani sirf jaankari ke liye hai, kanooni salah nahi".\n` +
       `Mazaak (2-3 jagah, mood "funny"), ek jagah pyaar bhari daant (mood "daant"), takleef/kanoon ki baat par gambhir (mood "serious"), ant mein shayari (mood "shayari"). Mood ooper-neeche hota rahe. ` + BOL +
       `Sirf JSON do:\n{${HEAD},"cast":{"A":"(${DRS_LIST})","B":"(wahi list)"},"lines":[${LINE_JSON}]}\nLagbhag ${nl} lines. ` + RULES;
     const KAHANI_G = () => `Write an animated SHORT FILM script (about ${mins}) for an international audience. Characters: A = "${nA}" (curious traveler from abroad, makes funny mistakes), B = "${nB}" (warm, witty Indian friend who knows things), N = narrator (short storyteller lines that move the story or change scene; at most one every 3-6 lines). Other roles (shopkeeper, auto driver, police officer, aunty) are played by A or B via a costume change ("dressA"/"dressB") or described by the narrator.\n` +
-      `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nStory idea: ${topic}\n` +
+      `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nStory idea: ${topic}${GEN}\n` +
       `FORMULA: hook within 5 seconds; setup (who/where/what they want); a problem (culture shock or a mistake, with humor); a new twist at 25%, 50% and 75%; resolution where B explains with accurate, well-established facts; ending: B's short ORIGINAL two-line rhyme + the lesson + a question to viewers + a tease of the next episode of the "${nA} in India" series. Move in 30-60 second mini-arcs; change scene or mood each arc; use travel scenes (car/bike/walk/cycle) when they travel, if available. ` +
       `Natural spoken English, contractions, real reactions; 2-3 clean jokes ("funny"), one playful scolding ("daant"), serious beats where respect is needed ("serious"), the closing rhyme ("shayari"). Respect every culture and religion — explain, never mock; no stereotypes; never invent numbers, dates, names or quotes; fictional story, no real private people or companies.\n` +
       `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","cast":{"A":"(${DRS_LIST})","B":"(same list)"},"lines":[${LINE_JSON.replace("1-2 chhote bolchaal ke vakya", "1-2 short spoken sentences").replace("board/label ke liye 2-5 shabd", "2-5 words for the label").replace("SIRF jab is line se A ki dress badle", "ONLY when A changes costume from this line").replace("warna ye field mat do", "otherwise omit").replace("waise hi B ke liye", "same for B").replace("khaali chhodo", "leave empty")}]}\nAbout ${nl} lines.`;
     $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script ban rahi hai…';
     try {
-      const r = await G.ask([{ role: "user", parts: [{ text: isK ? (g ? KAHANI_G() : KAHANI()) : g ? globalPrompt(topic, nA, nB, cat, fmt, nl) : (style === "cartoon" ? CARTOON :
+      const r = await G.ask([{ role: "user", parts: [{ text: isK ? (g ? KAHANI_G() : KAHANI()) : g ? globalPrompt(topic + GEN, nA, nB, cat, fmt, nl) : (style === "cartoon" ? CARTOON :
         `YouTube video banana hai (Hindi, aam logon ke liye, aasaan bhasha). Vishay:\n${topic}\n\n` +
         `Sirf JSON do, aur kuch nahi:\n{"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)",` +
         `"slides":[{"emoji":"(1 emoji jo slide ko dikhaye)","heading":"(chhota, Hindi)","points":["(3 keyword, har ek 2-5 shabd)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
@@ -345,7 +358,7 @@ const Video = (() => {
           scene: SCENES[String(l.scene || "").toLowerCase()] ? String(l.scene).toLowerCase() : "" }));
         const okD = d => (DRESS[String(d || "").toLowerCase()] ? String(d).toLowerCase() : "");
         plan.cast = { A: okD((plan.cast || {}).A), B: okD((plan.cast || {}).B) };
-        plan.style = "cartoon"; plan.kahani = isK; plan.names = { A: nA, B: nB, N: g ? "Narrator" : "Kahanikaar" };
+        plan.style = "cartoon"; plan.kahani = isK; plan.actors = actors; plan.names = { A: nA, B: nB, N: g ? "Narrator" : "Kahanikaar" };
       }
       if (!Array.isArray(plan.slides) || !plan.slides.length) throw new Error("script nahi mili — dobara dabao");
       plan.short = len === "short"; plan.lang = g ? "en" : "hi"; plan.mode = mode; plan.cat = cat; plan.fmt = fmt;
@@ -807,8 +820,22 @@ const Video = (() => {
     chacha: { eye: "#5a3a22", skin: "#d39a6a", shirt: "#3d6fb6", hair: "bald", hc: "#e8e6e1", brow: "#cfcac2", chest: "buttons", glasses: 1, mustache: 1 },
     leo: { eye: "#3d8fd6", skin: "#f3cba8", shirt: "#2fa37a", hair: "cap", hc: "#d9a441", cap: "#e2533c", brow: "#b5832e", chest: "hood", freckles: 1 },
     priya: { eye: "#7a4a2a", skin: "#c98d62", shirt: "#b0306a", hair: "braid", hc: "#1a1414", brow: "#1a1414", chest: "kurti", bindi: 1, lashes: 1, earrings: 1 },
+    dadi: { eye: "#5a3a22", skin: "#d9a383", shirt: "#f6efe1", hair: "greybun", hc: "#e2e0db", brow: "#d9d6cf", chest: "saree", border: "#c1121f", glasses: "#b8860b", bindi: 1, lashes: 1, earrings: 1, pants: "#f6efe1" },
+    meera: { eye: "#7a4a2a", skin: "#c98d62", shirt: "#127c7c", hair: "long", hc: "#1f1416", brow: "#1a1414", chest: "saree", border: "#f2c14e", bindi: 1, lashes: 1, earrings: 1, pants: "#127c7c" },
+    prof: { eye: "#5a3a22", skin: "#a8714a", shirt: "#7a5c3e", hair: "curly", hc: "#9e9b96", brow: "#8d8a85", chest: "vest", glasses: "#222", beard: "#9e9b96", pants: "#5c5c66" },
+    gurpreet: { eye: "#6b3e26", skin: "#e6b48f", shirt: "#264653", hair: "turban", hc: "#24181a", turban: "#f77f00", brow: "#1d1a18", chest: "jacket", inner: "#e9c46a", beard: "#24181a", pants: "#3a3a42" },
+    zoya: { eye: "#6b3e26", skin: "#f6cdb0", shirt: "#f6f3ee", hair: "bun", hc: "#2a1d1a", brow: "#2a1d1a", chest: "jacket", inner: "#f2c94c", glasses: "#ff4d6d", lashes: 1, earrings: 1, pants: "#f2c94c" },
+    anna: { eye: "#3f9142", skin: "#f6cdb0", shirt: "#5b8bd9", hair: "long", hc: "#e9c46a", brow: "#c9a227", chest: "collar", lashes: 1, earrings: 1, pants: "#e8e1d3" },
   };
-  const lookOf = who => LOOKS[GL() ? (who === "A" ? "leo" : "priya") : (who === "A" ? "pappu" : "chacha")];
+  // who can play A / B (name, Hindi description, female?)
+  const ROSTER = {
+    pappu: ["Pappu", "aam aadmi, bhola, mazaakiya", 0], chacha: ["Chacha", "samajhdaar bade", 0], leo: ["Leo", "curious traveler", 0], priya: ["Priya", "warm Indian friend", 1],
+    dadi: ["Dadi", "pyaari, tez-tarraar dadi", 1], meera: ["Meera", "samajhdaar teacher", 1], prof: ["Professor Rao", "gyaani professor", 0],
+    gurpreet: ["Gurpreet", "mast, mazaakiya dost", 0], zoya: ["Zoya", "smart, tech wali ladki", 1], anna: ["Anna", "foreign traveller", 1],
+  };
+  const DEF_ACT = { in: { A: "pappu", B: "chacha" }, g: { A: "leo", B: "priya" } };
+  const actorOf = who => (plan && plan.actors && plan.actors[who]) || DEF_ACT[GL() ? "g" : "in"][who] || "pappu";
+  const lookOf = who => LOOKS[actorOf(who)] || LOOKS.pappu;
   // mouth 0..1 (open), face: +1 looks right, -1 looks left
   function drawChar(ctx, x, y, s, who, mouth, blink, talking, tsec, face, emo, P) {
     const L = lookOf(who), ph = who === "A" ? 0 : 2;
@@ -818,9 +845,10 @@ const Video = (() => {
     const DR = DRESS[P.dress] || null, chest = DR ? DR.chest : L.chest;
     const shirt = DR ? DR.shirt : L.shirt, skin = L.skin, line = look3d ? "rgba(43,36,32,.6)" : "#2b2420";
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line; ctx.lineJoin = "round"; ctx.lineCap = "round";
-    if (L.hair === "braid") { ctx.fillStyle = L.hc; ctx.beginPath(); ctx.ellipse(0, -215 * s, 76 * s, 92 * s, 0, 0, 7); ctx.fill(); }
+    if (L.hair === "braid" || L.hair === "bun" || L.hair === "greybun") { ctx.fillStyle = L.hc; ctx.beginPath(); ctx.ellipse(0, -215 * s, 76 * s, 92 * s, 0, 0, 7); ctx.fill(); }
+    if (L.hair === "long") { ctx.fillStyle = look3d ? sideGrad(ctx, -90 * s, 90 * s, L.hc) : L.hc; ctx.beginPath(); ctx.moveTo(-78 * s, -240 * s); ctx.quadraticCurveTo(-96 * s, -120 * s, -70 * s, -95 * s); ctx.lineTo(70 * s, -95 * s); ctx.quadraticCurveTo(96 * s, -120 * s, 78 * s, -240 * s); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.ellipse(0, -225 * s, 80 * s, 92 * s, 0, 0, 7); ctx.fill(); }
     if (P.legs) { // walking or pedalling legs (hip → knee → foot), drawn behind the shirt
-      const pants = (DRESS[P.dress] || {}).pants || L.pants || "#3b4a66";
+      const pants = (DRESS[P.dress] || {}).pants || L.pants || "#3b4a66"; // (dress first, then the actor's own)
       [-1, 1].forEach(side => {
         const hx = side * 32 * s, hy = -6 * s; let fx, fy2, kx, ky;
         if (P.legs.mode === "walk") {
@@ -874,6 +902,21 @@ const Video = (() => {
       ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(0, -146 * s, 46 * s, 16 * s, 0, 0, 7); ctx.fill();
       ctx.strokeStyle = "#f4f1e8"; ctx.lineWidth = 3 * s; [-14, 14].forEach(dx => { ctx.beginPath(); ctx.moveTo(dx * s, -138 * s); ctx.lineTo(dx * s, -100 * s); ctx.stroke(); });
       ctx.strokeStyle = line; ctx.lineWidth = 3 * s; rr(ctx, -40 * s, -60 * s, 80 * s, 34 * s, 10 * s); ctx.stroke(); ctx.lineWidth = 4 * s;
+    } else if (chest === "saree") {
+      ctx.save(); ctx.beginPath(); ctx.moveTo(-70 * s, -150 * s); ctx.lineTo(-30 * s, -152 * s); ctx.lineTo(78 * s, -30 * s); ctx.lineTo(78 * s, 6 * s); ctx.closePath(); ctx.fillStyle = tint(shirt, -0.12); ctx.fill();
+      ctx.strokeStyle = L.border || "#c1121f"; ctx.lineWidth = 8 * s; ctx.beginPath(); ctx.moveTo(-30 * s, -150 * s); ctx.lineTo(78 * s, -28 * s); ctx.stroke(); ctx.restore();
+      ctx.fillStyle = L.border || "#c1121f"; ctx.fillRect(-76 * s, -4 * s, 152 * s, 10 * s); ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
+    } else if (chest === "vest") {
+      ctx.fillStyle = "#eef3fb"; ctx.beginPath(); ctx.moveTo(-34 * s, -150 * s); ctx.lineTo(0, -70 * s); ctx.lineTo(34 * s, -150 * s); ctx.fill();
+      ctx.fillStyle = "#a4161a"; ctx.beginPath(); ctx.moveTo(-6 * s, -140 * s); ctx.lineTo(6 * s, -140 * s); ctx.lineTo(8 * s, -90 * s); ctx.lineTo(0, -80 * s); ctx.lineTo(-8 * s, -90 * s); ctx.fill();
+      [-110, -80, -50].forEach(by => { ctx.fillStyle = "#3b2a1a"; ctx.beginPath(); ctx.arc(10 * s, by * s, 4 * s, 0, 7); ctx.fill(); });
+    } else if (chest === "jacket") {
+      ctx.fillStyle = L.inner || "#e9c46a"; ctx.beginPath(); ctx.moveTo(-26 * s, -150 * s); ctx.lineTo(0, -40 * s); ctx.lineTo(26 * s, -150 * s); ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 3 * s; for (let k = 1; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(-76 * s, (-150 + k * 40) * s); ctx.quadraticCurveTo(0, (-140 + k * 40) * s, 76 * s, (-150 + k * 40) * s); ctx.stroke(); }
+      ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
+    } else if (chest === "collar") {
+      ctx.fillStyle = "#fff"; [-1, 1].forEach(d => { ctx.beginPath(); ctx.moveTo(0, -128 * s); ctx.lineTo(d * 34 * s, -152 * s); ctx.lineTo(d * 10 * s, -150 * s); ctx.fill(); });
+      [-110, -80, -50].forEach(by => { ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.beginPath(); ctx.arc(0, by * s, 4 * s, 0, 7); ctx.fill(); });
     } else if (chest === "kurti") {
       ctx.strokeStyle = "#f2c14e"; ctx.lineWidth = 5 * s; ctx.beginPath(); ctx.moveTo(-24 * s, -148 * s); ctx.lineTo(0, -108 * s); ctx.lineTo(24 * s, -148 * s); ctx.stroke();
       ctx.fillStyle = "#f2c14e"; for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.arc(k * 20 * s, -24 * s, 3.5 * s, 0, 7); ctx.fill(); }
@@ -907,7 +950,14 @@ const Video = (() => {
       ctx.fillStyle = L.cap; ctx.beginPath(); ctx.arc(0, -36 * s, 64 * s, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.ellipse(face * 50 * s, -36 * s, 40 * s, 9 * s, 0, 0, 7); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(0, -70 * s, 9 * s, 0, 7); ctx.fill();
-    } else if (L.hair === "braid") {
+    } else if (L.hair === "curly") {
+      for (let k = 0; k < 11; k++) { const a = Math.PI * (1.0 + k * 0.1), cx2 = Math.cos(a) * 64 * s, cy2 = Math.sin(a) * 60 * s - 6 * s; ctx.fillStyle = look3d ? radial(ctx, cx2, cy2, 22 * s, L.hc) : L.hc; ctx.beginPath(); ctx.arc(cx2, cy2, 22 * s, 0, 7); ctx.fill(); }
+    } else if (L.hair === "turban") {
+      ctx.fillStyle = look3d ? radial(ctx, 0, -60 * s, 80 * s, L.turban) : L.turban; ctx.beginPath(); ctx.moveTo(-70 * s, -8 * s); ctx.quadraticCurveTo(-82 * s, -125 * s, 0, -120 * s); ctx.quadraticCurveTo(82 * s, -125 * s, 70 * s, -8 * s); ctx.quadraticCurveTo(0, -46 * s, -70 * s, -8 * s); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "rgba(0,0,0,.15)"; ctx.lineWidth = 4 * s; for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(-66 * s, (-26 - k * 22) * s); ctx.quadraticCurveTo(0, (-66 - k * 16) * s, 66 * s, (-36 - k * 18) * s); ctx.stroke(); }
+      ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
+    } else if (L.hair === "braid" || L.hair === "long" || L.hair === "bun" || L.hair === "greybun") {
+      if (L.hair === "bun" || L.hair === "greybun") { ctx.fillStyle = look3d ? radial(ctx, 0, -92 * s, 26 * s, L.hc) : L.hc; ctx.beginPath(); ctx.arc(0, -92 * s, 26 * s, 0, 7); ctx.fill(); }
       ctx.fillStyle = L.hc; ctx.beginPath(); ctx.moveTo(-68 * s, 4 * s);
       ctx.quadraticCurveTo(-72 * s, -84 * s, 0, -80 * s); ctx.quadraticCurveTo(72 * s, -84 * s, 68 * s, 4 * s);
       ctx.quadraticCurveTo(56 * s, -40 * s, 4 * s, -50 * s); ctx.lineTo(-4 * s, -50 * s); ctx.quadraticCurveTo(-56 * s, -40 * s, -68 * s, 4 * s); ctx.fill();
@@ -950,11 +1000,12 @@ const Video = (() => {
     });
     if (emo === "angry") { ctx.fillStyle = "rgba(220,50,50,.28)"; [-40, 40].forEach(cx => { ctx.beginPath(); ctx.ellipse(cx * s, 20 * s, 13 * s, 8 * s, 0, 0, 7); ctx.fill(); }); }
     ctx.strokeStyle = line; ctx.lineWidth = 3 * s;
-    if (L.glasses) { [-24, 24].forEach(dx => { ctx.beginPath(); ctx.arc(dx * s, -6 * s, 19 * s, 0, 7); ctx.stroke(); }); ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(5 * s, -6 * s); ctx.stroke(); }
+    if (L.glasses) { if (typeof L.glasses === "string") ctx.strokeStyle = L.glasses; [-24, 24].forEach(dx => { ctx.beginPath(); ctx.arc(dx * s, -6 * s, 19 * s, 0, 7); ctx.stroke(); }); ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(5 * s, -6 * s); ctx.stroke(); ctx.strokeStyle = line; }
     if (L.bindi) { ctx.fillStyle = "#d62839"; ctx.beginPath(); ctx.arc(0, -30 * s, 4.5 * s, 0, 7); ctx.fill(); }
     if (L.freckles) { ctx.fillStyle = "rgba(160,90,50,.55)"; [[-38, 16], [-30, 22], [-44, 22], [38, 16], [30, 22], [44, 22]].forEach(([fx, fy]) => { ctx.beginPath(); ctx.arc(fx * s, fy * s, 2.2 * s, 0, 7); ctx.fill(); }); }
     // nose
     ctx.beginPath(); ctx.moveTo(face * 2 * s, 4 * s); ctx.quadraticCurveTo(face * 12 * s, 20 * s, 0, 22 * s); ctx.stroke();
+    if (L.beard) { ctx.fillStyle = look3d ? radial(ctx, 0, 50 * s, 70 * s, L.beard) : L.beard; ctx.beginPath(); ctx.moveTo(-62 * s, 8 * s); ctx.quadraticCurveTo(-64 * s, 90 * s, 0, 96 * s); ctx.quadraticCurveTo(64 * s, 90 * s, 62 * s, 8 * s); ctx.quadraticCurveTo(40 * s, 50 * s, 0, 30 * s); ctx.quadraticCurveTo(-40 * s, 50 * s, -62 * s, 8 * s); ctx.fill(); }
     // mouth
     const my = 42 * s;
     if (mouth > 0.08) {
