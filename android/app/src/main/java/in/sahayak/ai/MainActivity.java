@@ -153,7 +153,7 @@ public class MainActivity extends FragmentActivity {
         web.addJavascriptInterface(new Bridge(), "Native");
         String view = getIntent().getStringExtra("view");
         web.loadUrl(START + ("cases".equals(view) ? "#cases" : ""));
-        if (lockOn()) lock();
+        if (lockOn()) { web.setVisibility(View.INVISIBLE); needLock = true; }
     }
 
     // ---------- fingerprint lock ----------
@@ -164,26 +164,56 @@ public class MainActivity extends FragmentActivity {
         return BiometricManager.from(this).canAuthenticate(AUTH) == BiometricManager.BIOMETRIC_SUCCESS;
     }
 
+    private boolean prompting = false, needLock = false, firstResume = true;
+
     private void lock() {
         if (!canAuth()) { web.setVisibility(View.VISIBLE); return; }
         web.setVisibility(View.INVISIBLE);
+        if (prompting) return;
+        prompting = true;
         BiometricPrompt bp = new BiometricPrompt(this, ContextCompat.getMainExecutor(this),
                 new BiometricPrompt.AuthenticationCallback() {
                     @Override
                     public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult r) {
+                        prompting = false;
                         web.setVisibility(View.VISIBLE);
                     }
 
                     @Override
                     public void onAuthenticationError(int code, @NonNull CharSequence msg) {
+                        prompting = false;
+                        // The system closed the dialog (app went to background etc.): ask again next time
+                        // the app is on screen, instead of leaving a blank page.
+                        if (code == BiometricPrompt.ERROR_CANCELED) { needLock = true; return; }
                         finish();
                     }
                 });
-        bp.authenticate(new BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Sahayak kholo")
-                .setSubtitle("Fingerprint ya phone ka lock")
-                .setAllowedAuthenticators(AUTH)
-                .build());
+        try {
+            bp.authenticate(new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle("Sahayak kholo")
+                    .setSubtitle("Fingerprint ya phone ka lock")
+                    .setAllowedAuthenticators(AUTH)
+                    .build());
+        } catch (Exception e) { prompting = false; needLock = true; }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (needLock) { needLock = false; web.postDelayed(this::lock, 300); } // ask only once the screen is really ours
+        else if (!prompting && web.getVisibility() != View.VISIBLE) {
+            if (lockOn()) web.postDelayed(this::lock, 300); else web.setVisibility(View.VISIBLE);
+        }
+        if (firstResume) { firstResume = false; return; } // page is still loading the first time
+        // Blank-screen guard: if the page does not answer quickly, its process died — rebuild it.
+        final boolean[] alive = {false};
+        try {
+            web.evaluateJavascript("(document.body&&document.body.innerHTML.length)||0", v -> {
+                alive[0] = true;
+                if ("0".equals(v) || "null".equals(v)) web.reload();
+            });
+        } catch (Exception ignored) { }
+        web.postDelayed(() -> { if (!alive[0] && !isFinishing()) recreate(); }, 3000);
     }
 
     @Override
@@ -207,7 +237,10 @@ public class MainActivity extends FragmentActivity {
         ownActivity = false;
         // While a video is being made, don't hide the page behind Sahayak's own fingerprint lock
         // (the phone's own screen lock still protects the phone). Hiding it stopped the video.
-        if (!mine && !videoBusy && lockOn() && SystemClock.elapsedRealtime() - stoppedAt > 60_000) lock();
+        if (!mine && !videoBusy && lockOn() && SystemClock.elapsedRealtime() - stoppedAt > 60_000) {
+            web.setVisibility(View.INVISIBLE);
+            needLock = true; // the dialog is shown from onResume — showing it here sometimes failed and left a blank page
+        }
     }
 
     @Override
