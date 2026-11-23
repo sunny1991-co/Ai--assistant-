@@ -106,6 +106,7 @@ const Chat = (() => {
     return `
       ${noKey ? `<div class="banner">🔑 Shuru karne ke liye ek baar <b>free Gemini key</b> daalni hai. <button class="btn primary" id="go-key">Key daalo</button></div>` : ""}
       ${Monitor.bannerText() ? `<div class="banner" id="go-mon">${esc(Monitor.bannerText())} — <b>dekho</b></div>` : ""}
+      ${Trends.due() ? `<div class="banner" id="go-trend">🔎 Ek hafta ho gaya — dekho log ab kya dhundh rahe hain → <b>Research</b></div>` : ""}
       ${due.length ? `<div class="banner">📅 ${due.map(c => esc(c.title) + " — " + (daysUntil(c.next) === 0 ? "<b>aaj</b>" : "kal")).join(", ")}</div>` : ""}
       <div class="welcome">
         <div class="big">🤖</div>
@@ -141,6 +142,7 @@ const Chat = (() => {
       box.innerHTML = welcome();
       const gk = $("#go-key"); if (gk) gk.onclick = () => App.go("settings");
       const gm = $("#go-mon"); if (gm) gm.onclick = () => App.go("monitor");
+      const gt = $("#go-trend"); if (gt) gt.onclick = () => App.go("trends");
       $$(".sugg button", box).forEach(b => b.onclick = () => {
         if (b.dataset.photo) { $("#file").click(); return; }
         if (b.dataset.web) { S.set("tg.web", true); $('.tg[data-t="web"]').classList.add("on"); }

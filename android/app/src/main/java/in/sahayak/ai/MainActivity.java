@@ -477,6 +477,7 @@ public class MainActivity extends FragmentActivity {
                     if (!(url.startsWith("https://generativelanguage.googleapis.com/") || url.startsWith("https://api.github.com/")
                             || url.startsWith("http://localhost:8787/sahayak/")
                             || (method.equals("GET") && url.startsWith("https://www.googleapis.com/youtube/v3/"))
+                            || (method.equals("GET") && url.startsWith("https://suggestqueries.google.com/complete/search"))
                             || (method.equals("GET") && (url.startsWith("https://news.google.com/rss")
                                 || url.startsWith("https://html.duckduckgo.com/html/")))))
                         throw new SecurityException("not allowed");
