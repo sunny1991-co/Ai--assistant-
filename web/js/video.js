@@ -404,7 +404,7 @@ const Video = (() => {
         `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
         `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.`) + LANG }] }];
       const SYS = g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.";
-      const r = await G.ask(reqContents, { system: SYS, web: false, json: true, onPart: () => {} });
+      const r = await G.ask(reqContents, { system: SYS, web: false, json: true, onPart: () => {}, onStatus: t => { $("#vmsg").textContent = t; } });
       plan = readScript(r.text);
       let why = `${r.finish || "?"}, ${String(r.text || "").length} akshar`;
       if (!plan) { // cut off or broken: try once more, shorter and flat
@@ -413,7 +413,7 @@ const Video = (() => {
         const again = [{ role: "user", parts: reqContents[0].parts.concat([{ text: g
           ? `\n\nIMPORTANT: keep it to about ${fewer} lines. Put ALL lines in ONE flat top-level "lines" array (no "scenes" nesting), each line an object with "who" ("A","B" or "N") and "text". Keep every text short. Close the JSON properly.`
           : `\n\nZAROORI: sirf lagbhag ${fewer} lines. Saari lines EK seedhi top-level "lines" array mein (scenes ke andar nahi), har line mein "who" ("A","B" ya "N") aur "text". Har text chhota. JSON poora band karo.` }]) }];
-        const r2 = await G.ask(again, { system: SYS, web: false, json: true, onPart: () => {} });
+        const r2 = await G.ask(again, { system: SYS, web: false, json: true, onPart: () => {}, onStatus: t => { $("#vmsg").textContent = t; } });
         plan = readScript(r2.text);
         why += ` / ${r2.finish || "?"}, ${String(r2.text || "").length} akshar`;
       }
