@@ -14,6 +14,7 @@ const Video = (() => {
   const voices = {}; // slide index -> {blob, dur} (owner's own recorded voice)
   const photos = {}; // slide index -> HTMLImageElement (owner's own photo)
   const AI_VOICES = [["Charon", "👨 Aadmi — gambhir"], ["Puck", "👨 Aadmi — josh wala"], ["Orus", "👨 Aadmi — shaant"], ["Kore", "👩 Aurat — saaf"], ["Aoede", "👩 Aurat — garm"], ["Leda", "👩 Aurat — halki"]];
+  const FEMALE = new Set(["Kore", "Aoede", "Leda", "Zephyr", "Callirrhoe", "Autonoe", "Despina", "Erinome", "Laomedeia", "Achernar", "Gacrux", "Pulcherrima", "Vindemiatrix", "Sulafat"]);
   const TTS_MODELS = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"];
 
   function pcmToWav(b64, rate) {
@@ -44,26 +45,29 @@ const Video = (() => {
     en: { funny: "Deliver this line playfully, smiling, with comic timing and a little laugh in the voice. ", serious: "Deliver this line seriously, slower and calm, like an important point. ",
       daant: "Deliver this line as a playful scolding — firm and a bit louder, like a big sister telling off a friend, not really angry. ", shayari: "Deliver this line like a short poem — rhythmic and warm, with gentle pauses. " },
   };
-  async function aiVoice(text, voice, who, mood) {
-    const ck = (EN() ? "en|" + (who || "") + "|" : "hi|") + (mood || "") + "|" + voice + "|" + text;
+  async function aiVoice(text, voice, who, mood, onWait) {
+    const ck = "v2|" + (EN() ? "en|" + (who || "") + "|" : "hi|") + (mood || "") + "|" + voice + "|" + text;
     if (ttsCache.has(ck)) return ttsCache.get(ck).slice(0);
     const saved = await idb.get(ck);
     if (saved && saved.v) { ttsCache.set(ck, saved.v.slice(0)); return saved.v.slice(0); }
-    const buf = await aiVoiceRaw(text, voice, who, mood);
+    const buf = await aiVoiceRaw(text, voice, who, mood, onWait);
     ttsCache.set(ck, buf.slice(0)); idb.put(ck, buf.slice(0));
     return buf;
   }
-  async function aiVoiceRaw(text, voice, who, mood) {
+  async function aiVoiceRaw(text, voice, who, mood, onWait) {
     const body = { contents: [{ role: "user", parts: [{ text: ((MOOD_TTS[EN() ? "en" : "hi"] || {})[mood] || "") + (who === "N" ? (EN() ? "Narrate like a warm, gripping storyteller of an animated short film — rich, calm voice, clear diction, small dramatic pauses, not robotic. Say this:\n" : "Ek kahani sunane wale (daastango) ki tarah bolo — garm, rochak awaaz, thehar-thehar kar, jahan zaroori ho wahan halka sa raaz bhara andaaz; robot ya news reader jaisa nahi. Ye Hindi bolo:\n") :
       EN() && who === "A" ? "Speak as a friendly, curious young American traveler — natural, expressive and conversational, with real reactions (surprise, laughter in the voice), not like a robot or news reader. Pronounce any Hindi words as best you can. Say this:\n" :
       EN() && who === "B" ? "Speak as a warm, cheerful young Indian woman in a natural Indian English accent — friendly, expressive storytelling, natural pauses; pronounce Hindi words authentically. Not robotic. Say this:\n" :
       EN() ? "Speak like a warm, friendly storyteller explaining to a friend — natural and conversational, clear neutral English, with natural pauses at commas and full stops, curious tone on questions. Not like a robot or a news reader. Say this:\n" : "Aise bolo jaise ek samajhdaar Bharatiya bada bhai apne dost ko chai pe samjha raha ho — aaram se, garmjoshi se, sawaal pe awaaz upar, zaroori baat pe zor, comma aur full stop pe halka ruk kar. News reader ya robot jaisa nahi. Ye Hindi bolo:\n") + text }] }],
       generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
+    // keep the same person's voice the whole video: say clearly man/woman, one speaker, no acting other characters
+    const fem = FEMALE.has(voice);
+    body.contents[0].parts[0].text = (EN() ? `[Single speaker, ${fem ? "female" : "male"} voice throughout. Do not change voice or imitate other characters.]\n` : `[Sirf ek bolne wala, poori line ${fem ? "aurat" : "aadmi"} ki isi awaaz mein. Awaaz mat badlo, kisi aur kirdaar ki nakal mat karo.]\n`) + body.contents[0].parts[0].text;
     const ok = S.get("ttsModel", "");
     const order = ok ? [ok, ...TTS_MODELS.filter(m => m !== ok)] : TTS_MODELS;
     let last = "";
     for (const m of order) {
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         const url = "https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent";
         let status, txt;
         try {
@@ -84,7 +88,7 @@ const Video = (() => {
           return pcmToWav(d.data, +((mt.match(/rate=(\d+)/) || [0, 24000])[1]));
         }
         last = "AI awaaz: " + status;
-        if ((status === 429 || status >= 500) && attempt === 0) { await new Promise(r => setTimeout(r, status === 429 ? 21000 : 2000)); continue; }
+        if ((status === 429 || status >= 500) && attempt < 2 && !/PerDay|per day|limit: ?0\b/i.test(txt || "")) { if (onWait) onWait(status === 429 ? 30 : 3); await new Promise(r => setTimeout(r, status === 429 ? 30000 : 3000)); continue; }
         break;
       }
     }
@@ -1581,8 +1585,11 @@ const Video = (() => {
         if (voices[i]) { bufs.push(await ac.decodeAudioData(await voices[i].blob.arrayBuffer())); continue; }
         const vv = cartoon ? "ai:" + voiceOf(plan.slides[i].who) : S.get("vVoice", "ai:Charon"), text = plan.slides[i].narration || plan.slides[i].heading || " ";
         if (vv.startsWith("ai:")) {
-          try { bufs.push(await ac.decodeAudioData(await aiVoice(text, vv.slice(3), cartoon ? plan.slides[i].who : "", cartoon ? plan.slides[i].mood : ""))); continue; }
-          catch (e) { if (!IS_APP) throw e; fallbackNote = "Kuch hisson mein AI awaaz ki free limit poori — wahan phone ki awaaz lagi" + (cartoon ? " (dono kirdaar ki ek jaisi awaaz)" : ""); }
+          try { bufs.push(await ac.decodeAudioData(await aiVoice(text, vv.slice(3), cartoon ? plan.slides[i].who : "", cartoon ? plan.slides[i].mood : "", sec => say(`🔊 Awaaz ${i + 1}/${plan.slides.length} — Google ki limit, ${sec} second ruk kar dobara…`)))); continue; }
+          catch (e) {
+            // cartoon: two characters must keep their own voices — never fill gaps with the phone's robot voice
+            if (cartoon) throw new Error(`AI awaaz ki free limit abhi poori (${i}/${plan.slides.length} line ki awaaz ban chuki, wo save hai). 15-30 minute baad "Video banao" dobara dabao — wahin se aage banegi, awaaz nahi badlegi.`);
+            if (!IS_APP) throw e; fallbackNote = "Kuch hisson mein AI awaaz ki free limit poori — wahan phone ki awaaz lagi" + (cartoon ? " (dono kirdaar ki ek jaisi awaaz)" : ""); }
         }
         const r = await nativeCall("speakToFile", plan.slides[i].narration || plan.slides[i].heading || " ", EN() ? "en-US" : "hi-IN", S.get("voiceRate", 1));
         if (r.error) throw new Error(r.error);
