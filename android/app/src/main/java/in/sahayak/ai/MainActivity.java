@@ -250,8 +250,8 @@ public class MainActivity extends FragmentActivity {
         }));
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
             @Override public void onStart(String u) { }
-            @Override public void onDone(String u) { speakDone(u); }
-            @Override public void onError(String u) { speakDone(u); }
+            @Override public void onDone(String u) { if (u != null && u.startsWith("file:")) fileDone(u, true); else speakDone(u); }
+            @Override public void onError(String u) { if (u != null && u.startsWith("file:")) fileDone(u, false); else speakDone(u); }
             @Override public void onStop(String u, boolean interrupted) { speakDone(u); }
         });
     }
@@ -283,6 +283,23 @@ public class MainActivity extends FragmentActivity {
         int ok = tts.setLanguage(Locale.forLanguageTag(lang));
         if (ok == TextToSpeech.LANG_MISSING_DATA || ok == TextToSpeech.LANG_NOT_SUPPORTED)
             tts.setLanguage(new Locale("en", "IN"));
+    }
+
+    /** Voice-over to a WAV file (for videos): send it back to the page as base64. */
+    private void fileDone(String utterance, boolean ok) {
+        String id = utterance.substring(5);
+        File f = new File(getCacheDir(), "tts_" + id.replaceAll("[^A-Za-z0-9]", "") + ".wav");
+        JSONObject o = new JSONObject();
+        try {
+            if (!ok || !f.exists()) throw new IllegalStateException("tts failed");
+            byte[] b = new byte[(int) f.length()];
+            try (InputStream in = new java.io.FileInputStream(f)) { int off = 0, n; while (off < b.length && (n = in.read(b, off, b.length - off)) > 0) off += n; }
+            o.put("b64", Base64.encodeToString(b, Base64.NO_WRAP));
+        } catch (Exception e) {
+            try { o.put("error", "Awaaz file nahi bani"); } catch (Exception ignored) { }
+        }
+        f.delete();
+        cb(id, o);
     }
 
     private void speakDone(String utterance) {
@@ -363,6 +380,56 @@ public class MainActivity extends FragmentActivity {
         public void setRate(double r) {
             final float rate = (float) Math.max(0.5, Math.min(2.0, r));
             runOnUiThread(() -> withTts(() -> { if (ttsReady) tts.setSpeechRate(rate); }));
+        }
+
+        @JavascriptInterface
+        public void speakToFile(String id, String text, String lang, double rate) {
+            runOnUiThread(() -> withTts(() -> {
+                if (!ttsReady) { cb(id, obj("error", "Phone mein bolne wala engine nahi mila")); return; }
+                pickVoice(lang);
+                tts.setSpeechRate((float) Math.max(0.6, Math.min(1.6, rate)));
+                File f = new File(getCacheDir(), "tts_" + id.replaceAll("[^A-Za-z0-9]", "") + ".wav");
+                int r = tts.synthesizeToFile(text.length() > 3900 ? text.substring(0, 3900) : text, null, f, "file:" + id);
+                if (r != TextToSpeech.SUCCESS) cb(id, obj("error", "Awaaz file nahi bani"));
+            }));
+        }
+
+        /** Big files (videos) arrive in pieces: append to a temp file, then move to Downloads/Sahayak. */
+        @JavascriptInterface
+        public void saveChunk(String id, String name, String mime, String b64, boolean first, boolean last) {
+            new Thread(() -> {
+                JSONObject o = new JSONObject();
+                try {
+                    String safe = name.replaceAll("[^A-Za-z0-9._-]", "_");
+                    File tmp = new File(getCacheDir(), "out_" + safe);
+                    try (OutputStream os = new FileOutputStream(tmp, !first)) { os.write(Base64.decode(b64, Base64.DEFAULT)); }
+                    if (last) {
+                        boolean ok = false;
+                        if (Build.VERSION.SDK_INT >= 29) {
+                            ContentValues cv = new ContentValues();
+                            cv.put(MediaStore.MediaColumns.DISPLAY_NAME, safe);
+                            cv.put(MediaStore.MediaColumns.MIME_TYPE, mime);
+                            cv.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Sahayak");
+                            Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                            if (u != null) try (OutputStream os = getContentResolver().openOutputStream(u); InputStream in = new java.io.FileInputStream(tmp)) {
+                                byte[] buf = new byte[65536]; int n; while ((n = in.read(buf)) > 0) os.write(buf, 0, n); ok = true; }
+                        } else {
+                            File dir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "Sahayak");
+                            if (dir.exists() || dir.mkdirs()) ok = tmp.renameTo(new File(dir, safe));
+                        }
+                        tmp.delete();
+                        o.put("ok", ok);
+                    } else o.put("ok", true);
+                } catch (Exception e) {
+                    try { o.put("ok", false); } catch (Exception ignored) { }
+                }
+                cb(id, o);
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void keepScreenOn(boolean on) {
+            runOnUiThread(() -> web.setKeepScreenOn(on));
         }
 
         @JavascriptInterface
