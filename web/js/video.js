@@ -36,17 +36,23 @@ const Video = (() => {
     };
   })();
   setTimeout(() => idb.prune(), 8000);
-  async function aiVoice(text, voice, who) {
-    const ck = (EN() ? "en|" + (who || "") + "|" : "hi|") + voice + "|" + text;
+  const MOOD_TTS = {
+    hi: { funny: "Is line ko mazaakiya andaaz mein, muskurate hue aur halki hansi ke saath, comedy timing se bolo. ", serious: "Is line ko gambhir, dheemi aur thehri hui awaaz mein bolo, jaise bahut zaroori baat ho. ",
+      daant: "Is line ko pyaar bhari daant ke andaaz mein bolo — thoda tez aur sakht, jaise ghar ke bade galti pe daant-te hain, par gussa asli nahi. ", shayari: "Is line ko shayarana andaaz mein bolo — thehar-thehar kar, dil se, jaise mushaire mein sher padh rahe ho. " },
+    en: { funny: "Deliver this line playfully, smiling, with comic timing and a little laugh in the voice. ", serious: "Deliver this line seriously, slower and calm, like an important point. ",
+      daant: "Deliver this line as a playful scolding — firm and a bit louder, like a big sister telling off a friend, not really angry. ", shayari: "Deliver this line like a short poem — rhythmic and warm, with gentle pauses. " },
+  };
+  async function aiVoice(text, voice, who, mood) {
+    const ck = (EN() ? "en|" + (who || "") + "|" : "hi|") + (mood || "") + "|" + voice + "|" + text;
     if (ttsCache.has(ck)) return ttsCache.get(ck).slice(0);
     const saved = await idb.get(ck);
     if (saved && saved.v) { ttsCache.set(ck, saved.v.slice(0)); return saved.v.slice(0); }
-    const buf = await aiVoiceRaw(text, voice, who);
+    const buf = await aiVoiceRaw(text, voice, who, mood);
     ttsCache.set(ck, buf.slice(0)); idb.put(ck, buf.slice(0));
     return buf;
   }
-  async function aiVoiceRaw(text, voice, who) {
-    const body = { contents: [{ role: "user", parts: [{ text: (EN() && who === "A" ? "Speak as a friendly, curious young American traveler — natural, expressive and conversational, with real reactions (surprise, laughter in the voice), not like a robot or news reader. Pronounce any Hindi words as best you can. Say this:\n" :
+  async function aiVoiceRaw(text, voice, who, mood) {
+    const body = { contents: [{ role: "user", parts: [{ text: ((MOOD_TTS[EN() ? "en" : "hi"] || {})[mood] || "") + (EN() && who === "A" ? "Speak as a friendly, curious young American traveler — natural, expressive and conversational, with real reactions (surprise, laughter in the voice), not like a robot or news reader. Pronounce any Hindi words as best you can. Say this:\n" :
       EN() && who === "B" ? "Speak as a warm, cheerful young Indian woman in a natural Indian English accent — friendly, expressive storytelling, natural pauses; pronounce Hindi words authentically. Not robotic. Say this:\n" :
       EN() ? "Speak like a warm, friendly storyteller explaining to a friend — natural and conversational, clear neutral English, with natural pauses at commas and full stops, curious tone on questions. Not like a robot or a news reader. Say this:\n" : "Aise bolo jaise ek samajhdaar Bharatiya bada bhai apne dost ko chai pe samjha raha ho — aaram se, garmjoshi se, sawaal pe awaaz upar, zaroori baat pe zor, comma aur full stop pe halka ruk kar. News reader ya robot jaisa nahi. Ye Hindi bolo:\n") + text }] }],
       generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
@@ -259,8 +265,12 @@ const Video = (() => {
       `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nTopic: ${topic}\n` + (cat === "hindi" ? "" : `Format: ${GFMT[fmt]}\n`) +
       `\nStyle: natural spoken English, short sentences, contractions, light clean humor, real reactions ("wait, what?", "no way!"). The very first line must hook in 3 seconds with a surprising fact or question. Vary rhythm. Never say "in this video we will". No filler, no repeated catchphrases. End: B gives a one-line recap, A asks viewers a question for the comments, then a quick "subscribe for more".\n` +
       `Accuracy and respect (strict): only well-established facts; never invent numbers, dates, names or quotes — if unsure, say it more generally. Respect every culture and religion: explain, never mock; no stereotypes; humor is never at a group's expense. No song lyrics or movie dialogue. No guarantees or personal advice.\n` +
-      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
-      `About ${nl} lines, mostly alternating (sometimes one speaker says two lines).`;
+      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
+      `About ${nl} lines, mostly alternating (sometimes one speaker says two lines).\n` +
+      `ENTERTAINMENT (very important — it must be fun to watch, not a dry answer): include 2-3 clean jokes or puns that fit the moment (mood "funny"), ` +
+      `one short ORIGINAL two-line rhyme or poetic line, e.g. B sums up a point in verse (mood "shayari"; never quote famous poems or lyrics), ` +
+      `one moment where ${nB} playfully scolds ${nA} for a silly idea or mistake (mood "daant"; affectionate, never mean), ` +
+      `and 1-3 serious beats where the topic needs respect or care (mood "serious"). Everything else "normal". Mix the moods so the energy goes up and down. Humor never targets a religion, culture, country, gender or any group.`;
   }
 
   async function makePlan() {
@@ -284,9 +294,13 @@ const Video = (() => {
     const nl = { short: 8, mid: 18, long: 32 }[len];
     const CARTOON = `YouTube cartoon video ki script banani hai — do original cartoon kirdaar aapas mein baat karte hain (Hindi, aam logon ke liye). Vishay:\n${topic}\n\n` +
       `Kirdaar: A = "${nA}" — aam aadmi, darshak ki tarah sawaal puchta hai, kabhi confuse hota hai, halka mazaak karta hai. B = "${nB}" — samajhdaar bade, dheeraj se aasaan misaal dekar samjhate hain. B vakil NAHI hai — jaankari deta hai, salah nahi; zaroorat pe kehta hai "apne case ke liye vakil se milna".\n` +
-      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
+      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
       `Lagbhag ${nl} lines, A aur B baari-baari (kabhi ek hi kirdaar 2 line bhi). Shuru: A ek aam zindagi ki pareshani/sawaal se (pehli line 3 second mein dhyaan khinche). B ki pehli line mein chhota sa: "dekho, ye sirf jaankari hai, kanooni salah nahi". Beech mein: seedha jawab, kanoon/court kya kehta hai (judgment diya ho to naam-saal), kya karein — steps. A beech-beech mein sawaal/shaq kare taaki baat asli lage. Aakhir: B saar + "apne case ke liye vakil se milna, nateeje ki guarantee koi nahi de sakta"; A darshakon se: "aapke saath aisa hua hai? comment mein batao, aur like-subscribe kar do". ` +
-      `Mazaak halka aur saaf ho — peedit, jaati, dharm, aurat/aadmi ya kisi samuday pe mazaak nahi. Kitaabi ya ratti hui bhasha nahi. ` + RULES;
+      `Mazaak halka aur saaf ho — peedit, jaati, dharm, aurat/aadmi ya kisi samuday pe mazaak nahi. Kitaabi ya ratti hui bhasha nahi. ` +
+      `MANORANJAN (bahut zaroori — seedha-saadha jawab nahi, sunne wale ko maza aaye): 2-3 jagah halka saaf chutkula ya mazedaar baat jo vishay se judi ho (mood "funny"); ` +
+      `ek chhoti APNI banayi 2 line ki shayari, jaise ${nB} kisi baat ko sher mein samjhaye (mood "shayari"; kisi mashhoor shayar/gaane ki line nahi); ` +
+      `ek jagah ${nB} ${nA} ko pyaar se daant lagaye jab wo koi galat/bewakoofi wali baat kare (mood "daant", jaise "arre buddhu!" — apmaan nahi); ` +
+      `jahan kanoon, khatra ya kisi ki takleef ki baat ho wahan 1-3 line gambhir (mood "serious") — wahan mazaak bilkul nahi. Baaki "normal". Mood ooper-neeche hota rahe. Apradh ya peedit ki takleef pe kabhi mazaak nahi. ` + RULES;
     $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script ban rahi hai…';
     try {
       const r = await G.ask([{ role: "user", parts: [{ text: g ? globalPrompt(topic, nA, nB, cat, fmt, nl) : (style === "cartoon" ? CARTOON :
@@ -300,7 +314,7 @@ const Video = (() => {
       const t = r.text.replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
       plan = JSON.parse(t);
       if (style === "cartoon") {
-        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^b/i.test(l.who || "") ? "B" : "A", narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60) }));
+        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^b/i.test(l.who || "") ? "B" : "A", narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60), mood: ["funny", "serious", "daant", "shayari"].includes(String(l.mood || "").toLowerCase()) ? String(l.mood).toLowerCase() : "" }));
         plan.style = "cartoon"; plan.names = { A: nA, B: nB };
       }
       if (!Array.isArray(plan.slides) || !plan.slides.length) throw new Error("script nahi mili — dobara dabao");
@@ -323,6 +337,7 @@ const Video = (() => {
         <label class="field">Thumbnail ka text<input id="vth" value="${esc(p.thumbnail_text || "")}"></label>
         <div class="row"><button class="btn" data-copy="vt">📋 Title</button><button class="btn" data-copy="vd">📋 Description</button><button class="btn" data-copy="vg">📋 Tags</button><button class="btn" id="vthumb">🖼️ Thumbnail save</button></div></div>
       ${p.style === "cartoon" ? p.slides.map((s, i) => `<div class="card"><div class="row"><b>${i + 1}.</b>
+        <select data-mood="${i}">${[["", "🙂 Normal"], ["funny", "😂 Mazaak"], ["serious", "😐 Gambhir"], ["daant", "😤 Daant"], ["shayari", "✍️ Shayari"]].map(([k, t]) => `<option value="${k}" ${(s.mood || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select>
         <select data-who="${i}"><option value="A" ${s.who === "A" ? "selected" : ""}>${GL() ? "🧳" : "🙋"} ${esc(p.names.A)}</option><option value="B" ${s.who === "B" ? "selected" : ""}>${GL() ? "🙋‍♀️" : "👴"} ${esc(p.names.B)}</option></select></div>
         <label class="field">🔊 Bolna hai<textarea data-n="${i}" rows="2">${esc(s.narration || "")}</textarea></label>
         <label class="field">🟩 Board pe<input data-h="${i}" value="${esc(s.heading || "")}"></label>
@@ -344,7 +359,7 @@ const Video = (() => {
         ${p.style === "cartoon" ? `<div class="row"><button class="btn" id="vphotos">🖼️ Topic ki photos dhundho</button><label class="row small"><input type="checkbox" id="vphon" ${p.noPhotos ? "" : "checked"}> Peeche photo dikhao</label></div><div class="small muted">Photos Wikimedia Commons se (free license) — credit description mein apne aap judta hai.</div>` : ""}
         <button class="btn${p.style === "cartoon" ? " primary" : ""}" id="vtest">${p.style === "cartoon" ? "▶️ Pehle namoona dekho-suno (shuru ki 3 line)" : "▶️ Awaaz suno"}</button>
         <label class="row small"><input type="checkbox" id="vlow" ${S.get("vLow", (navigator.deviceMemory || 8) <= 4) ? "checked" : ""}> 📉 Halki quality (purana/kam RAM phone, ya app blank ho jaye to)</label>
-        <label class="row small"><input type="checkbox" id="vmusic" ${S.get("vMusic", true) ? "checked" : ""}> 🎵 Peeche halka music (apna banaya, copyright-free)</label>
+        <label class="field">🎵 Peeche music (app khud banata hai, copyright-free)<select id="vmusic">${Object.entries(MUSIC).map(([k, v]) => `<option value="${k}" ${musicStyle() === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
         ${p.style === "cartoon" ? "" : `<div class="banner small">💡 Video insaan jaisi lage, iske liye: 1) har slide pe <b>apni awaaz</b> record karo (sabse bada fark), 2) <b>apni kheenchi photo</b> lagao (court, thana, kagaz, apna haath — kisi ka chehra nahi), 3) script ko apne shabdon mein thoda badlo.</div>`}
         <button class="btn" id="vcheck" style="margin-top:8px">🔍 AI se script jaanchwao</button>
         <div id="vcres" class="small"></div>
@@ -363,7 +378,7 @@ const Video = (() => {
     $$("[data-rec]").forEach(b => b.onclick = () => recordSlide(+b.dataset.rec));
     $$("[data-pic]").forEach(b => b.onclick = () => pickPhoto(+b.dataset.pic));
     $$("[data-unpic]").forEach(b => b.onclick = () => { readEdits(); delete photos[+b.dataset.unpic]; drawEditor(); });
-    $("#vmusic").onchange = e => S.set("vMusic", e.target.checked);
+    $("#vmusic").onchange = e => S.set("vMusicStyle", e.target.value);
     $("#vlow").onchange = e => S.set("vLow", e.target.checked);
     $$("[data-play]").forEach(b => b.onclick = () => { const a = new Audio(URL.createObjectURL(voices[+b.dataset.play].blob)); a.play(); });
     $("#vmake").onclick = make;
@@ -405,23 +420,77 @@ const Video = (() => {
     inp.click();
   }
 
-  // soft original background music (a few slow chords), mixed quietly under the voice
-  function music(ac, dest, start, dur) {
-    const out = ac.createGain(); out.gain.value = 0.05;
-    const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
-    out.connect(lp); lp.connect(dest);
-    const CH = [[220, 261.6, 329.6], [174.6, 220, 261.6], [196, 246.9, 293.7], [164.8, 207.7, 246.9]];
-    const step = 4;
-    for (let t = 0, k = 0; t < dur; t += step, k++) {
-      CH[k % 4].forEach(f => {
-        const o = ac.createOscillator(), g = ac.createGain();
-        o.type = "sine"; o.frequency.value = f;
-        const a = start + t, e = Math.min(start + dur, a + step + 0.5);
-        g.gain.setValueAtTime(0, a); g.gain.linearRampToValueAtTime(0.33, a + 1.2); g.gain.linearRampToValueAtTime(0, e);
-        o.connect(g); g.connect(out); o.start(a); o.stop(e + 0.1);
-      });
-    }
-    out.gain.setValueAtTime(0.05, start + Math.max(0, dur - 2)); out.gain.linearRampToValueAtTime(0, start + dur);
+  // ---------- music & sound effects (all made here → copyright-free) ----------
+  let noiseBuf = null;
+  function noise(ac) {
+    if (noiseBuf && noiseBuf.sampleRate === ac.sampleRate) return noiseBuf;
+    const b = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return (noiseBuf = b);
+  }
+  function tone(ac, out, type, f, t, dur, vol, f2) {
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = type;
+    o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function hit(ac, out, t, dur, vol, ftype, freq) {
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noise(ac); f.type = ftype; f.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(out); src.start(t, Math.random() * 0.5); src.stop(t + dur + 0.05);
+  }
+  const MUSIC = { fun: ["🎸 Mazedaar (masti wala)", 104], desi: ["🪕 Desi (tabla-sitar jaisa)", 92], calm: ["🎹 Shaant", 76], off: ["🔇 Koi music nahi", 0] };
+  function musicStyle() { const m = S.get("vMusicStyle", ""); return MUSIC[m] ? m : (S.get("vMusic", true) ? "fun" : "off"); }
+  // schedules a little ahead every time tick() is called; music dips while someone speaks
+  function musicPlayer(ac, dest, t0, total, style, speech) {
+    if (!MUSIC[style] || style === "off") return { tick() {} };
+    const bus = ac.createGain(), lp = ac.createBiquadFilter();
+    lp.type = "lowpass"; lp.frequency.value = style === "calm" ? 1500 : 6000; bus.connect(lp); lp.connect(dest);
+    const LOUD = style === "calm" ? 0.13 : 0.2, DUCK = LOUD * 0.32;
+    bus.gain.setValueAtTime(LOUD, t0);
+    speech.forEach(([a, b]) => { bus.gain.setTargetAtTime(DUCK, t0 + a - 0.15, 0.06); bus.gain.setTargetAtTime(LOUD, t0 + b + 0.05, 0.3); });
+    bus.gain.setTargetAtTime(0.0001, t0 + Math.max(0, total - 1.6), 0.5);
+    const beat = 60 / MUSIC[style][1];
+    const PROG = style === "desi" ? [[146.8, 220, 293.7], [146.8, 220, 293.7], [130.8, 196, 261.6], [146.8, 220, 293.7]]
+      : [[261.6, 329.6, 392], [196, 246.9, 293.7], [220, 261.6, 329.6], [174.6, 220, 261.6]];
+    const SCALE = [293.7, 311.1, 370, 392, 440, 466.2, 554.4, 587.3];
+    let next = 0, n = 0, mel = 3;
+    const at = (k, t) => {
+      const ch = PROG[Math.floor(k / 4) % 4], b = k % 4;
+      if (style === "fun") {
+        if (b === 0 || b === 2) { tone(ac, bus, "sine", 130, t, 0.2, 0.9, 45); tone(ac, bus, "triangle", ch[0] / 2, t, beat * 1.7, 0.45); }
+        if (b === 1 || b === 3) hit(ac, bus, t, 0.15, 0.4, "bandpass", 1800);
+        hit(ac, bus, t, 0.04, 0.16, "highpass", 7000); hit(ac, bus, t + beat / 2, 0.04, 0.1, "highpass", 7000);
+        tone(ac, bus, "triangle", ch[(b * 2) % 3] * 2, t, 0.25, 0.2); tone(ac, bus, "triangle", ch[(b * 2 + 1) % 3] * 2, t + beat / 2, 0.25, 0.16);
+      } else if (style === "desi") {
+        if (b === 0) { tone(ac, bus, "sawtooth", 73.4, t, beat * 4.3, 0.08); tone(ac, bus, "sawtooth", 110, t + beat, beat * 3.3, 0.05); }
+        const low = b === 0 || b === 2;
+        tone(ac, bus, "sine", low ? 95 : 320, t, low ? 0.35 : 0.12, low ? 0.7 : 0.3, low ? 68 : 290);
+        hit(ac, bus, t + beat / 2, 0.06, 0.1, "bandpass", 3500);
+        if (k % 2 === 0) { mel = Math.max(0, Math.min(SCALE.length - 1, mel + [-1, 1, 1, -2, 2, 0][Math.floor(Math.random() * 6)])); tone(ac, bus, "triangle", SCALE[mel], t, beat * 1.4, 0.16); }
+      } else {
+        if (b === 0) ch.forEach(f => tone(ac, bus, "sine", f, t, beat * 4, 0.1));
+        tone(ac, bus, "triangle", ch[b % 3] * 2, t + beat / 2, 0.7, 0.07);
+      }
+    };
+    return { tick() { const until = ac.currentTime + 1.2; while (t0 + next < until && next < total) { at(n, t0 + next); next += beat; n++; } } };
+  }
+  // little sound effects after a joke / a shayari, and before a scolding
+  function sfx(ac, out, kind, t) {
+    const g = ac.createGain(); g.gain.value = 0.45; g.connect(out);
+    if (kind === "funny") { tone(ac, g, "sine", 200, t, 0.14, 0.8, 150); tone(ac, g, "sine", 150, t + 0.16, 0.16, 0.8, 115); hit(ac, g, t + 0.33, 0.6, 0.45, "highpass", 6000); }
+    else if (kind === "shayari") [880, 1318.5, 1760].forEach((f, i) => tone(ac, g, "sine", f, t + i * 0.09, 1.2, 0.22));
+    else if (kind === "daant") [110, 130.8, 155.6].forEach(f => tone(ac, g, "sawtooth", f, t, 0.6, 0.14));
+  }
+  const GAP = { funny: 0.95, shayari: 0.8, daant: 0.35, serious: 0.45 };
+  const lineGap = (sl, cartoon) => (cartoon ? (GAP[sl && sl.mood] || 0.3) : 0.6);
+  function scheduleFx(ac, out, t0, segs) {
+    segs.forEach(sg => {
+      const sl = sg.buf && plan.slides[sg.i]; if (!sl || !sl.mood) return;
+      if (sl.mood === "daant") sfx(ac, out, "daant", t0 + sg.start - 0.05);
+      if (sl.mood === "funny" || sl.mood === "shayari") sfx(ac, out, sl.mood, t0 + sg.start + sg.buf.duration + 0.05);
+    });
   }
 
   // ▶️ live preview of the first lines: real voices + moving cartoon, nothing saved
@@ -430,7 +499,7 @@ const Video = (() => {
     const sl = plan.slides[i], text = sl.narration || sl.heading || " ";
     const vv = plan.style === "cartoon" ? "ai:" + (sl.who === "B" ? vB() : vA()) : S.get("vVoice", "ai:Charon");
     if (vv.startsWith("ai:")) {
-      try { return await ac.decodeAudioData(await aiVoice(text, vv.slice(3), plan.style === "cartoon" ? sl.who : "")); }
+      try { return await ac.decodeAudioData(await aiVoice(text, vv.slice(3), plan.style === "cartoon" ? sl.who : "", plan.style === "cartoon" ? sl.mood : "")); }
       catch (e) { if (!IS_APP) throw e; }
     }
     const r = await nativeCall("speakToFile", text, EN() ? "en-US" : "hi-IN", S.get("voiceRate", 1));
@@ -458,16 +527,18 @@ const Video = (() => {
           }
         } catch (e) { st.textContent = "❌ " + (e.message || "Awaaz nahi bani") + " — ⚙️ Settings mein Gemini key dekho"; return; }
         if (stop) return;
-        let t = 0; segs.forEach(s => { s.start = t; t += s.buf.duration + 0.3; }); const total = t;
+        let t = 0; segs.forEach(s => { s.start = t; s.d = s.buf.duration + lineGap(plan.slides[s.i], true); t += s.d; }); const total = t;
         const t0 = ac.currentTime + 0.2;
-        if (S.get("vMusic", true)) music(ac, ac.destination, t0, total);
+        const mp = musicPlayer(ac, ac.destination, t0, total, musicStyle(), segs.map(x => [x.start, x.start + x.buf.duration])); mp.tick();
+        scheduleFx(ac, ac.destination, t0, segs);
         segs.forEach(s => { const src = ac.createBufferSource(); src.buffer = s.buf; src.connect(ac.destination); src.start(t0 + s.start); });
         st.textContent = "🔊 Awaaz chalu hai — pasand na aaye to upar awaaz badal ke dobara dekho";
         const tick = () => {
           if (stop || !document.contains(cv)) { end(); return; }
           const el = ac.currentTime - t0;
+          mp.tick();
           if (el >= total) { st.textContent = "✅ Namoona khatam. Theek laga to neeche tick lagao aur 🎬 Video banao (ye awaaz dobara use hogi)."; return; }
-          const s = segs.find(x => el >= x.start && el < x.start + x.buf.duration + 0.3) || segs[0];
+          const s = segs.find(x => el >= x.start && el < x.start + x.d) || segs[0];
           const m = el >= s.start ? (s.env[Math.floor((el - s.start) * 30)] || 0) : 0;
           cartoonFrame(ctx, cw, chh, "slide", plan.slides[s.i], Math.max(0, Math.min(1, (el - s.start) / s.buf.duration)), s.i, plan.slides.length, S.get(K("vChannel"), ""), Math.max(0, el), m);
           requestAnimationFrame(tick);
@@ -501,7 +572,7 @@ const Video = (() => {
   function readEdits0() {
     const p = plan;
     p.title = $("#vt").value; p.description = $("#vd").value; p.tags = $("#vg").value.split(",").map(x => x.trim()).filter(Boolean); p.thumbnail_text = $("#vth").value;
-    if (p.style === "cartoon") { p.slides.forEach((s, i) => { s.who = $(`[data-who="${i}"]`).value; s.heading = $(`[data-h="${i}"]`).value.trim(); s.narration = $(`[data-n="${i}"]`).value.trim(); }); return; }
+    if (p.style === "cartoon") { p.slides.forEach((s, i) => { s.who = $(`[data-who="${i}"]`).value; s.mood = $(`[data-mood="${i}"]`).value; s.heading = $(`[data-h="${i}"]`).value.trim(); s.narration = $(`[data-n="${i}"]`).value.trim(); }); return; }
     p.slides.forEach((s, i) => { s.heading = $(`[data-h="${i}"]`).value; s.points = $(`[data-p="${i}"]`).value.split("\n").map(x => x.trim()).filter(Boolean); s.narration = $(`[data-n="${i}"]`).value.trim(); });
   }
 
@@ -619,9 +690,9 @@ const Video = (() => {
   };
   const lookOf = who => LOOKS[GL() ? (who === "A" ? "leo" : "priya") : (who === "A" ? "pappu" : "chacha")];
   // mouth 0..1 (open), face: +1 looks right, -1 looks left
-  function drawChar(ctx, x, y, s, who, mouth, blink, talking, tsec, face) {
+  function drawChar(ctx, x, y, s, who, mouth, blink, talking, tsec, face, emo) {
     const L = lookOf(who), ph = who === "A" ? 0 : 2;
-    const bob = talking ? Math.sin(tsec * 9) * 2.5 * s : Math.sin(tsec * 1.6 + ph) * 1.5 * s;
+    const bob = emo === "happy" ? Math.abs(Math.sin(tsec * 13)) * -5 * s : emo === "serious" ? 0 : talking ? Math.sin(tsec * 9) * 2.5 * s : Math.sin(tsec * 1.6 + ph) * 1.5 * s;
     ctx.save(); ctx.translate(x, y + bob);
     const shirt = L.shirt, skin = L.skin, line = "#2b2420";
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line; ctx.lineJoin = "round"; ctx.lineCap = "round";
@@ -680,7 +751,9 @@ const Video = (() => {
     // eyes (look at the other character)
     const ex = face * 5 * s;
     ctx.strokeStyle = line;
-    [-24, 24].forEach(dx => {
+    if (emo === "happy" && !talking) { // laughing: eyes squeezed shut
+      ctx.lineWidth = 3.5 * s; [-24, 24].forEach(dx => { ctx.beginPath(); ctx.arc(dx * s, -2 * s, 10 * s, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); });
+    } else [-24, 24].forEach(dx => {
       if (blink) { ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo((dx - 10) * s, -6 * s); ctx.lineTo((dx + 10) * s, -6 * s); ctx.stroke(); return; }
       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(dx * s, -6 * s, 12 * s, 14 * s, 0, 0, 7); ctx.fill(); ctx.lineWidth = 2.5 * s; ctx.stroke();
       ctx.fillStyle = line; ctx.beginPath(); ctx.arc(dx * s + ex, -4 * s, 6 * s, 0, 7); ctx.fill();
@@ -688,8 +761,14 @@ const Video = (() => {
     });
     // eyebrows (raised while talking)
     ctx.lineWidth = 5 * s; ctx.strokeStyle = L.brow;
-    const br = talking ? -6 * s : 0;
-    [-24, 24].forEach(dx => { ctx.beginPath(); ctx.moveTo((dx - 12) * s, -28 * s + br); ctx.lineTo((dx + 12) * s, -30 * s + br); ctx.stroke(); });
+    const br = emo === "serious" ? 3 * s : talking ? -6 * s : 0;
+    [-24, 24].forEach(dx => {
+      const o = Math.sign(dx); // o>0 right brow; inner end is near the nose
+      let yi = -28 * s + br, yo = -30 * s + br;
+      if (emo === "angry") { yi = -20 * s; yo = -34 * s; } else if (emo === "sad") { yi = -36 * s; yo = -26 * s; }
+      ctx.beginPath(); ctx.moveTo((dx - o * 12) * s, yi); ctx.lineTo((dx + o * 12) * s, yo); ctx.stroke();
+    });
+    if (emo === "angry") { ctx.fillStyle = "rgba(220,50,50,.28)"; [-40, 40].forEach(cx => { ctx.beginPath(); ctx.ellipse(cx * s, 20 * s, 13 * s, 8 * s, 0, 0, 7); ctx.fill(); }); }
     ctx.strokeStyle = line; ctx.lineWidth = 3 * s;
     if (L.glasses) { [-24, 24].forEach(dx => { ctx.beginPath(); ctx.arc(dx * s, -6 * s, 19 * s, 0, 7); ctx.stroke(); }); ctx.beginPath(); ctx.moveTo(-5 * s, -6 * s); ctx.lineTo(5 * s, -6 * s); ctx.stroke(); }
     if (L.bindi) { ctx.fillStyle = "#d62839"; ctx.beginPath(); ctx.arc(0, -30 * s, 4.5 * s, 0, 7); ctx.fill(); }
@@ -701,7 +780,11 @@ const Video = (() => {
     if (mouth > 0.08) {
       ctx.fillStyle = "#6b2b2b"; ctx.beginPath(); ctx.ellipse(0, my, 18 * s, (4 + 15 * Math.min(1, mouth)) * s, 0, 0, 7); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#e66"; ctx.beginPath(); ctx.ellipse(0, my + (3 + 8 * Math.min(1, mouth)) * s, 9 * s, 4 * s, 0, 0, 7); ctx.fill();
-    } else { if (L.lashes) { ctx.strokeStyle = "#a63a46"; ctx.lineWidth = 4.5 * s; } ctx.beginPath(); ctx.arc(0, my - 12 * s, 18 * s, 0.35, Math.PI - 0.35); ctx.stroke(); ctx.strokeStyle = line; }
+    } else if (emo === "happy") { // big laugh
+      ctx.fillStyle = "#6b2b2b"; ctx.beginPath(); ctx.moveTo(-22 * s, my - 6 * s); ctx.quadraticCurveTo(0, my + 30 * s, 22 * s, my - 6 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#fff"; ctx.fillRect(-14 * s, my - 6 * s, 28 * s, 6 * s);
+    } else if (emo === "sad" || emo === "serious") { ctx.beginPath(); ctx.arc(0, my + (emo === "sad" ? 14 : 4) * s, 14 * s, Math.PI + 0.5, -0.5); ctx.stroke(); }
+    else { if (L.lashes) { ctx.strokeStyle = "#a63a46"; ctx.lineWidth = 4.5 * s; } ctx.beginPath(); ctx.arc(0, my - 12 * s, 18 * s, 0.35, Math.PI - 0.35); ctx.stroke(); ctx.strokeStyle = line; }
     if (L.mustache) { ctx.fillStyle = "#e8e6e1"; ctx.beginPath(); ctx.moveTo(-30 * s, 30 * s); ctx.quadraticCurveTo(0, 18 * s, 30 * s, 30 * s); ctx.quadraticCurveTo(0, 38 * s, -30 * s, 30 * s); ctx.fill(); }
     ctx.restore();
   }
@@ -861,13 +944,21 @@ const Video = (() => {
     for (const s of plan.slides) if (s.photo) return imgs[s.photo.url] || null; // title: first photo
     return null;
   }
+  const phCache = new WeakMap();
   function photoBg(ctx, w, h, img, tsec, idx) {
-    const z = 1.06 + 0.04 * Math.sin(tsec * 0.15 + idx), r = Math.max(w / img.naturalWidth, h / img.naturalHeight) * z;
-    const dw = img.naturalWidth * r, dh = img.naturalHeight * r;
-    ctx.drawImage(img, (w - dw) / 2 + Math.sin(tsec * 0.1) * 12, (h - dh) / 2, dw, dh);
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, "rgba(0,0,0,.45)"); g.addColorStop(0.35, "rgba(0,0,0,.08)"); g.addColorStop(0.65, "rgba(0,0,0,.15)"); g.addColorStop(1, "rgba(0,0,0,.65)");
-    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    // scale + darken once, then just slide the ready picture slowly (cheap per frame)
+    let m = phCache.get(img);
+    if (!m || m.k !== w + "x" + h) {
+      const W2 = Math.round(w * 1.1), H2 = Math.round(h * 1.1), c = document.createElement("canvas"); c.width = W2; c.height = H2;
+      const x = c.getContext("2d"), r = Math.max(W2 / img.naturalWidth, H2 / img.naturalHeight), dw = img.naturalWidth * r, dh = img.naturalHeight * r;
+      x.drawImage(img, (W2 - dw) / 2, (H2 - dh) / 2, dw, dh);
+      const g = x.createLinearGradient(0, 0, 0, H2);
+      g.addColorStop(0, "rgba(0,0,0,.45)"); g.addColorStop(0.35, "rgba(0,0,0,.08)"); g.addColorStop(0.65, "rgba(0,0,0,.15)"); g.addColorStop(1, "rgba(0,0,0,.65)");
+      x.fillStyle = g; x.fillRect(0, 0, W2, H2);
+      m = { k: w + "x" + h, c }; phCache.set(img, m);
+    }
+    const ox = (m.c.width - w) * (0.5 + 0.5 * Math.sin(tsec * 0.12 + idx)), oy = (m.c.height - h) * (0.5 + 0.5 * Math.cos(tsec * 0.09 + idx));
+    ctx.drawImage(m.c, -ox, -oy);
   }
   // small label instead of the big board, so the photo stays visible
   function label(ctx, w, h, text, emoji, sc, F) {
@@ -879,10 +970,17 @@ const Video = (() => {
     ctx.fillStyle = "#fff"; ctx.fillText(t, w / 2, y + (v ? 44 : 39) * sc, w - 60 * sc);
   }
 
+  // the drawn room/space/street stays the same during a video → draw it once and reuse (smoother video)
+  let sceneC = null, sceneK = "";
+  function sceneCache(w, h) {
+    const k = CAT() + "|" + w + "|" + h + "|" + (GL() ? "g" : "in");
+    if (sceneK !== k) { sceneC = document.createElement("canvas"); sceneC.width = w; sceneC.height = h; cartoonScene(sceneC.getContext("2d"), w, h, 0); sceneK = k; }
+    return sceneC;
+  }
   function cartoonFrame(ctx, w, h, kind, s, prog, idx, total, channel, tsec, mouth) {
     const sc = Math.min(w, h) / 720, F = "'Noto Sans Devanagari','Noto Sans',sans-serif", v = w < h;
     const ph = photoAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
-    if (ph) photoBg(ctx, w, h, ph, tsec, idx); else cartoonScene(ctx, w, h, tsec);
+    if (ph) photoBg(ctx, w, h, ph, tsec, idx); else ctx.drawImage(sceneCache(w, h), 0, 0);
     const board = ph ? label : boardBig;
     const names = (plan && plan.names) || (GL() ? { A: "Leo", B: "Priya" } : { A: "Pappu", B: "Chacha" });
     const who = kind === "slide" ? s.who : null;
@@ -891,8 +989,22 @@ const Video = (() => {
     const cs = (v ? 1.15 : 1.25) * sc, ax = v ? w * 0.27 : w * 0.16, bx = v ? w * 0.73 : w * 0.84, cy = v ? h - 30 * sc : h - 10 * sc;
     const bl = k => (tsec + k) % 3.9 < 0.13;
     const end = kind === "end";
-    drawChar(ctx, ax, cy, cs, "A", who === "A" ? mouth : 0, bl(0), who === "A" || (end && Math.sin(tsec * 6) > 0), tsec, 1);
-    drawChar(ctx, bx, cy, cs, "B", who === "B" ? mouth : 0, bl(1.7), who === "B", tsec, -1);
+    const mood = kind === "slide" ? (s.mood || "") : "";
+    const emoOf = k => {
+      const sp = who === k;
+      if (mood === "funny") return sp ? (prog > 0.8 ? "happy" : "") : (prog > 0.35 ? "happy" : "");
+      if (mood === "daant") return sp ? "angry" : "sad";
+      if (mood === "serious") return "serious";
+      if (mood === "shayari") return !sp && prog > 0.85 ? "happy" : "";
+      return end ? "happy" : "";
+    };
+    const eA = emoOf("A"), eB = emoOf("B");
+    drawChar(ctx, ax, cy, cs, "A", who === "A" ? mouth : 0, bl(0), who === "A" || (end && Math.sin(tsec * 6) > 0), tsec, 1, eA);
+    drawChar(ctx, bx, cy, cs, "B", who === "B" ? mouth : 0, bl(1.7), who === "B", tsec, -1, eB);
+    // mood stickers
+    const sticker = (x, e) => { const t = e === "happy" ? "😂" : e === "angry" ? "💢" : e === "sad" ? "😳" : ""; if (!t) return; ctx.font = `${40 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(t, x + 60 * sc, cy - (v ? 340 : 370) * cs / sc * sc + Math.sin(tsec * 6) * 4 * sc); };
+    sticker(ax, eA); sticker(bx, eB);
+    if (mood === "shayari" && who) { ctx.font = `${34 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText("✨📜✨", who === "A" ? ax : bx, cy - (v ? 450 : 480) * sc + Math.sin(tsec * 3) * 5 * sc); }
     // name tags
     ctx.font = `bold ${22 * sc}px ${F}`; ctx.textAlign = "center";
     [[ax, names.A, "A"], [bx, names.B, "B"]].forEach(([x, n, k]) => {
@@ -974,7 +1086,7 @@ const Video = (() => {
         if (voices[i]) { bufs.push(await ac.decodeAudioData(await voices[i].blob.arrayBuffer())); continue; }
         const vv = cartoon ? "ai:" + (plan.slides[i].who === "B" ? vB() : vA()) : S.get("vVoice", "ai:Charon"), text = plan.slides[i].narration || plan.slides[i].heading || " ";
         if (vv.startsWith("ai:")) {
-          try { bufs.push(await ac.decodeAudioData(await aiVoice(text, vv.slice(3), cartoon ? plan.slides[i].who : ""))); continue; }
+          try { bufs.push(await ac.decodeAudioData(await aiVoice(text, vv.slice(3), cartoon ? plan.slides[i].who : "", cartoon ? plan.slides[i].mood : ""))); continue; }
           catch (e) { if (!IS_APP) throw e; fallbackNote = "Kuch hisson mein AI awaaz ki free limit poori — wahan phone ki awaaz lagi" + (cartoon ? " (dono kirdaar ki ek jaisi awaaz)" : ""); }
         }
         const r = await nativeCall("speakToFile", plan.slides[i].narration || plan.slides[i].heading || " ", EN() ? "en-US" : "hi-IN", S.get("voiceRate", 1));
@@ -983,7 +1095,7 @@ const Video = (() => {
         bufs.push(await ac.decodeAudioData(arr.buffer));
       }
       if (cartoon) { say("🖼️ Photos load ho rahi hain…"); await Promise.all(plan.slides.filter(x => x.photo).map(x => loadImg(x.photo.url))); }
-      const low = !!S.get("vLow", (navigator.deviceMemory || 8) <= 4), fps = low ? 24 : 30;
+      const low = !!S.get("vLow", (navigator.deviceMemory || 8) <= 4), fps = low ? 20 : 24;
       const w = plan.short ? (low ? 540 : 720) : (low ? 960 : W), h = plan.short ? (low ? 960 : 1280) : (low ? 540 : H);
       const c = document.createElement("canvas"); c.width = w; c.height = h;
       const ctx = c.getContext("2d");
@@ -996,15 +1108,17 @@ const Video = (() => {
       const name = "video-" + ymd() + "-" + Date.now().toString(36).slice(-4) + "." + ext;
       // phone: write each second's piece straight to storage, so the whole video never sits in memory
       const chunks = []; let wq = Promise.resolve(), size = 0, firstW = true, wfail = false, outUri = "";
-      const put = async (u8, last) => { const f = firstW; firstW = false; const r = await nativeCall("saveChunk", name, base, b64(u8), f, last); if (!r.ok) wfail = true; if (r.uri) outUri = r.uri; };
+      // FileReader does the base64 work natively, so drawing doesn't stutter every second
+      const blobB64 = bl => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1] || ""); fr.onerror = () => no(fr.error); fr.readAsDataURL(bl); });
+      const put = async (b64s, last) => { const f = firstW; firstW = false; const r = await nativeCall("saveChunk", name, base, b64s, f, last); if (!r.ok) wfail = true; if (r.uri) outUri = r.uri; };
       rec.ondataavailable = e => {
         if (!e.data.size) return; size += e.data.size;
         if (!IS_APP) { chunks.push(e.data); return; }
-        const d = e.data; wq = wq.then(async () => { const u8 = new Uint8Array(await d.arrayBuffer()); for (let i = 0; i < u8.length; i += 768 * 1024) await put(u8.subarray(i, i + 768 * 1024), false); });
+        const d = e.data; wq = wq.then(async () => put(await blobB64(d), false));
       };
       // timeline: title 2.5s, slides (voice + 0.6s), end 2.5s
       const segs = [{ kind: "title", d: plan.short ? 1.2 : 2.5 }];
-      bufs.forEach((b, i) => segs.push({ kind: "slide", i, d: b.duration + (cartoon ? 0.3 : 0.6), buf: b, env: cartoon ? envelope(b) : null }));
+      bufs.forEach((b, i) => segs.push({ kind: "slide", i, d: b.duration + lineGap(plan.slides[i], cartoon), buf: b, env: cartoon ? envelope(b) : null }));
       segs.push({ kind: "end", d: 2.5 });
       let t = 0; segs.forEach(s => { s.start = t; t += s.d; }); const total = t;
       const ch = S.get(K("vChannel"), "");
@@ -1017,11 +1131,12 @@ const Video = (() => {
       };
       document.addEventListener("visibilitychange", onVis);
       const t0 = ac.currentTime + 0.3; let lastSay = -1;
-      if (S.get("vMusic", true)) music(ac, dest, t0, total);
+      const mp = musicPlayer(ac, dest, t0, total, musicStyle(), segs.filter(x => x.buf).map(x => [x.start, x.start + x.buf.duration])); mp.tick();
+      if (cartoon) scheduleFx(ac, dest, t0, segs.filter(x => x.buf));
       segs.forEach(s => { if (s.buf) { const src = ac.createBufferSource(); src.buffer = s.buf; src.connect(dest); src.start(t0 + s.start); } });
       await new Promise(done => {
         const iv = setInterval(() => {
-          const el = ac.currentTime - t0;
+          const el = ac.currentTime - t0; mp.tick();
           if (el >= total) { clearInterval(iv); done(); return; }
           const s = segs.find(x => el >= x.start && el < x.start + x.d) || segs[0];
           const p = Math.max(0, Math.min(1, (el - s.start) / s.d));
@@ -1038,7 +1153,7 @@ const Video = (() => {
       document.removeEventListener("visibilitychange", onVis); onVis = null;
       say("💾 Save ho raha hai…"); stage("save");
       let ok;
-      if (IS_APP) { await wq; await put(new Uint8Array(0), true); ok = !wfail; }
+      if (IS_APP) { await wq; await put("", true); ok = !wfail; }
       else ok = await saveBlob(new Blob(chunks, { type: base }), name, base);
       S.del("vMaking");
       const where = IS_APP ? "📁 Gallery → <b>Movies/Sahayak</b> folder (Files app: Movies → Sahayak)" : "💻 Browser ke Downloads mein";
@@ -1054,5 +1169,5 @@ const Video = (() => {
     const cv = $("#vbusy"); if (cv) cv.remove();
   }
 
-  return { render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, "slide", s, 0.5, 2, 8, "Kanoon Aasaan", tsec, m); } };
+  return { _music: musicPlayer, _sfx: sfx, render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, "slide", s, extra && extra.prog != null ? extra.prog : 0.5, 2, 8, "Kanoon Aasaan", tsec, m); } };
 })();
