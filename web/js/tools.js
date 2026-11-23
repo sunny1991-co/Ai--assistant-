@@ -4,6 +4,7 @@ const Tools = (() => {
   const inr = n => "₹" + Math.round(n).toLocaleString("en-IN");
 
   const TOOLS = [
+    { k: "finance", i: "💼", t: "Finance Guide", s: "Mere funds + goal ki salah" },
     { k: "draft", i: "✍️", t: "Drafting", s: "Notice, application, RTI…" },
     { k: "doc", i: "📄", t: "Document saar", s: "PDF/photo ke mukhya point" },
     { k: "ocr", i: "🔤", t: "Photo se text", s: "Likha hua text nikalo" },
@@ -62,6 +63,7 @@ const Tools = (() => {
   function open(k) {
     const box = $("#tool");
     if (k === "draft") { draft(); return; }
+    if (k === "finance") { App.go("finance"); return; }
     if (k === "doc") { Chat.start("Is document/photo ka saar do: 1) ye kya hai, 2) mukhya baatein points mein, 3) naam, tareekhein, rakam, dharayein (sections), 4) mere liye aage kya karna zaroori hai.", { pickFile: true, web: false }); return; }
     if (k === "ocr") { Chat.start("Is photo/PDF mein jo likha hai, wo poora text jaisa ka taisa likh do (Hindi ho to Hindi mein, English ho to English mein). Kuch mat badlo, sirf saaf karke likho.", { pickFile: true, web: false }); return; }
     if (k === "court") {
