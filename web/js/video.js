@@ -188,7 +188,8 @@ const Video = (() => {
         return `<div class="banner" style="border-color:#e66">⚠️ Pichhli video beech mein ruk gayi thi (ruki: <b>${esc(mk.stage || "?")}</b>). Aksar phone ki memory kam padne se hota hai. Maine <b>📉 Halki quality</b> chalu kar di hai — dobara banao, aur banate waqt app mat chhodna.</div>`; })()}
       <div class="banner">✅ Sirf apna original content (doosron ki video/gaana mat daalna). ⚖️ Peedit ka naam kabhi nahi, judge pe ilzaam nahi, parties "A aur B". Upload se pehle script ek baar khud padh lena.</div>
       <div class="card">
-        <label class="field">❓ Logon ka sawaal<input id="vq" placeholder="Jaise: Kya police bina warrant giraftar kar sakti hai?"></label>
+        <div class="row" style="align-items:flex-end"><label class="field" style="flex:1">✨ Kuch bhi likho — ek shabd bhi chalega<input id="vq" placeholder="Jaise: Taj Mahal · helmet · cheque bounce · online fraud"></label>${Voice.canListen() ? '<button class="btn" id="vmic" title="Bolkar likho">🎤</button>' : ""}</div>
+        <p class="muted small" style="margin-top:-4px">AI khud usse achha sawaal/kahani chunkar poori script likh dega.</p>
         <div class="toggles" style="flex-wrap:wrap">${IDEAS.map(q => `<button class="tg" data-idea="${esc(q)}">${esc(q)}</button>`).join("")}</div>
         <label class="field">⚖️ Judgment / tathya (optional — Court app ka saar yahan paste karo)<textarea id="vtopic" rows="4" placeholder="Jaise: Arnesh Kumar vs State of Bihar (2014) — 7 saal se kam saza wale case mein turant giraftari nahi…"></textarea></label>
         <div class="row"><label class="field" style="flex:1">Lambai<select id="vlen">${Object.entries(LENGTHS).map(([k, v]) => `<option value="${k}" ${k === "mid" ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
@@ -205,7 +206,7 @@ const Video = (() => {
         <div id="vmsg" class="small" style="margin-top:6px"></div>
       </div>
       <div id="vedit"></div></div>`;
-    $("#vplan").onclick = makePlan; bindActors();
+    $("#vplan").onclick = makePlan; bindActors(); bindMic();
     if ($("#vmine")) $("#vmine").onclick = myVideos;
     const sn = () => { $("#vnames").hidden = $("#vacts").hidden = $("#vstyle").value === "slides"; };
     $("#vstyle").onchange = () => { S.set(K("vStyle"), $("#vstyle").value); sn(); }; sn();
@@ -241,7 +242,8 @@ const Video = (() => {
       <div class="card">
         <label class="field">📂 Vishay<select id="vcat">${Object.entries(GCATS).map(([k, v]) => `<option value="${k}" ${k === cat ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
         <div class="toggles" style="flex-wrap:wrap" id="vchips"></div>
-        <label class="field">🎯 Topic (English)<input id="vq" placeholder="e.g. Why do Indians celebrate Diwali?"></label>
+        <div class="row" style="align-items:flex-end"><label class="field" style="flex:1">✨ Kuch bhi likho — ek shabd bhi chalega<input id="vq" placeholder="e.g. Taj Mahal · Holi · chai · GPS"></label>${Voice.canListen() ? '<button class="btn" id="vmic" title="Bolkar likho">🎤</button>' : ""}</div>
+        <p class="muted small" style="margin-top:-4px">Hindi ya English, kuch bhi likho — AI khud achha angle chunkar English script likhega.</p>
         <label class="field">📝 Apne notes / pakke tathya (optional)<textarea id="vtopic" rows="3" placeholder="Jo baat zaroor aani chahiye, ya kisi bharosemand source ki line…"></textarea></label>
         <div class="row"><label class="field" style="flex:1">Lambai<select id="vlen">${Object.entries(LENGTHS).map(([k, v]) => `<option value="${k}" ${k === "short" ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
           <label class="field" style="flex:1">Format<select id="vfmt"><option value="auto">🎲 Har baar alag (behtar)</option><option value="qa">💬 Sawaal-jawaab</option><option value="myth">❌✅ Myth vs Fact</option><option value="top">🔢 Top 5</option><option value="story">📖 Kahani</option></select></label></div>
@@ -260,7 +262,7 @@ const Video = (() => {
       $$("[data-idea]").forEach(b => b.onclick = () => { $("#vq").value = b.dataset.idea; });
       $("#vfmt").disabled = c === "hindi";
     };
-    $("#vcat").onchange = chips; chips(); bindActors();
+    $("#vcat").onchange = chips; chips(); bindActors(); bindMic();
     if ($("#vmine")) $("#vmine").onclick = myVideos;
     $("#vplan").onclick = makePlan;
     if (plan) drawEditor();
@@ -282,6 +284,10 @@ const Video = (() => {
       `and 1-3 serious beats where the topic needs respect or care (mood "serious"). Everything else "normal". Mix the moods so the energy goes up and down. Humor never targets a religion, culture, country, gender or any group.`;
   }
 
+  function bindMic() {
+    const b = $("#vmic"); if (!b) return;
+    b.onclick = async () => { b.disabled = true; b.textContent = "👂"; try { const t = await Voice.listen(); if (t) $("#vq").value = t; } catch (e) { toast(e.message || "Suna nahi"); } b.disabled = false; b.textContent = "🎤"; };
+  }
   // picking a different actor also fills in their name and a matching voice
   function bindActors() {
     ["A", "B"].forEach(k => { const el = $("#va" + k.toLowerCase()); if (!el) return;
@@ -291,9 +297,12 @@ const Video = (() => {
   }
   async function makePlan() {
     const q = $("#vq").value.trim(), facts = $("#vtopic").value.trim();
-    if (q.length < 8 && facts.length < 15) { toast("Sawaal likho ya ek idea chuno"); return; }
+    if (q.length < 2 && facts.length < 15) { toast("Kuch to likho — jaise: Taj Mahal"); return; }
+    const shortIdea = q && q.split(/\s+/).length <= 4 && !/[?？]/.test(q);
     const g = mode === "g";
-    const topic = g ? q + (facts ? "\nMust-include notes from the creator:\n" + facts : "") : "Sawaal: " + (q || "(tathya se banao)") + (facts ? "\nJudgment / tathya:\n" + facts : "");
+    const IDEA_HI = shortIdea ? `\n(Owner ne sirf ek chhota vishay/shabd likha hai: "${q}". Tum khud is par sabse rochak aur kaam ka angle chuno — log is baare mein kya jaanna chahte hain, koi chaunkane wala sach ya aam galti — aur usi par poori script likho. Agar ye vishay kanoon/police/court/haq se juda NAHI hai (jaise koi jagah, tyohaar, itihaas, khana), to kanoon wali baatein (vakil se milo, kanooni salah nahi) mat thoonso — sirf pakki, sahi aam jaankari do; baaki sab niyam wahi rahenge.)` : "";
+    const IDEA_EN = shortIdea ? `\n(The creator only typed a short idea: "${q}" (it may be in Hindi). Pick the most interesting, accurate angle on it yourself — a surprising fact, a common myth, or a little story — and write the full script in English. If it doesn't fit the chosen topic area, follow the idea anyway.)` : "";
+    const topic = g ? q + IDEA_EN + (facts ? "\nMust-include notes from the creator:\n" + facts : "") : (shortIdea ? "Vishay: " + q : "Sawaal: " + (q || "(tathya se banao)")) + IDEA_HI + (facts ? "\nJudgment / tathya:\n" + facts : "");
     S.set(K("vChannel"), $("#vch").value.trim());
     const len = $("#vlen").value, n = LENGTHS[len][1], style = $("#vstyle") ? $("#vstyle").value : "cartoon", isK = style === "kahani";
     S.set(K("vStyle"), style);
