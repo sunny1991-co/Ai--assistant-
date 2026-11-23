@@ -158,6 +158,7 @@ public class MainActivity extends FragmentActivity {
 
     // ---------- fingerprint lock ----------
     private boolean lockOn() { return prefs.getBoolean("lock", false); }
+    private volatile boolean videoBusy = false; // a video is being made right now
 
     private boolean canAuth() {
         return BiometricManager.from(this).canAuthenticate(AUTH) == BiometricManager.BIOMETRIC_SUCCESS;
@@ -189,6 +190,14 @@ public class MainActivity extends FragmentActivity {
     protected void onStop() {
         super.onStop();
         stoppedAt = SystemClock.elapsedRealtime();
+        // tell the page directly (screen off / other app), in case the browser's own signal is late
+        if (web != null) web.evaluateJavascript("window.dispatchEvent(new Event('apphide'))", null);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (web != null) web.evaluateJavascript("window.dispatchEvent(new Event('appshow'))", null);
     }
 
     @Override
@@ -196,7 +205,9 @@ public class MainActivity extends FragmentActivity {
         super.onRestart();
         boolean mine = ownActivity;
         ownActivity = false;
-        if (!mine && lockOn() && SystemClock.elapsedRealtime() - stoppedAt > 60_000) lock();
+        // While a video is being made, don't hide the page behind Sahayak's own fingerprint lock
+        // (the phone's own screen lock still protects the phone). Hiding it stopped the video.
+        if (!mine && !videoBusy && lockOn() && SystemClock.elapsedRealtime() - stoppedAt > 60_000) lock();
     }
 
     @Override
@@ -565,12 +576,17 @@ public class MainActivity extends FragmentActivity {
 
         @JavascriptInterface
         public void keepScreenOn(boolean on) {
-            runOnUiThread(() -> web.setKeepScreenOn(on));
+            runOnUiThread(() -> {
+                web.setKeepScreenOn(on);
+                if (on) getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                else getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            });
         }
 
         /** While a video is being made: keep the app and its page alive if the owner switches apps. */
         @JavascriptInterface
         public void videoWork(boolean on) {
+            videoBusy = on;
             runOnUiThread(() -> {
                 Intent i = new Intent(MainActivity.this, VideoService.class);
                 try {

@@ -1144,7 +1144,7 @@ const Video = (() => {
     // big notice on top while working
     const cover = document.createElement("div"); cover.id = "vbusy";
     cover.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:50;padding:12px 16px;background:#1d2a44;color:#fff;font-size:15px;box-shadow:0 2px 10px rgba(0,0,0,.3)";
-    cover.innerHTML = '🎬 <b>Video ban rahi hai</b> — <span id="vbusyt">shuru…</span><br><small>Doosra app mat kholo. Khologe to video ruk jaayegi, aur Sahayak par wapas aate hi wahin se chalegi.</small>';
+    cover.innerHTML = '🎬 <b>Video ban rahi hai</b> — <span id="vbusyt">shuru…</span><br><small>📵 Phone lock (power button) mat dabana aur doosra app mat kholna — screen band hote hi video ruk jaati hai. Galti se ho jaye to phone kholo, Sahayak wahin se aage chalegi.</small>';
     document.body.appendChild(cover);
     const prog = $("#vprog"), say = m => { prog.innerHTML = m; const t = $("#vbusyt"); if (t) t.innerHTML = m.replace(/<br>[\s\S]*$/, ""); };
     const stage = st => S.set("vMaking", { stage: st, at: Date.now() }); // survives a crash → shown next time
@@ -1196,11 +1196,12 @@ const Video = (() => {
       if (cartoon) cartoonFrame(ctx, w, h, "title", plan.title, 0, 0, 1, ch, 0, 0); else frame(ctx, w, h, "title", plan.title, 0, 0, 1, ch);
       rec.start(1000);
       // leaving the app pauses the video; coming back continues from the same point
-      onVis = () => {
-        if (document.hidden) { try { rec.pause(); } catch (e) {} ac.suspend(); }
-        else { ac.resume(); try { rec.resume(); } catch (e) {} }
-      };
+      let away = false;
+      const goAway = () => { if (away) return; away = true; try { rec.pause(); } catch (e) {} ac.suspend(); };
+      const comeBack = () => { if (!away) return; away = false; ac.resume(); try { rec.resume(); } catch (e) {} };
+      onVis = e => { if ((e && e.type === "apphide") || document.hidden) goAway(); else comeBack(); };
       document.addEventListener("visibilitychange", onVis);
+      window.addEventListener("apphide", onVis); window.addEventListener("appshow", onVis);
       const t0 = ac.currentTime + 0.3; let lastSay = -1;
       const mp = musicPlayer(ac, dest, t0, total, musicStyle(), segs.filter(x => x.buf).map(x => [x.start, x.start + x.buf.duration])); mp.tick();
       if (cartoon) scheduleFx(ac, dest, t0, segs.filter(x => x.buf));
@@ -1221,7 +1222,7 @@ const Video = (() => {
         }, 1000 / fps);
       });
       await new Promise(r => { rec.onstop = r; rec.stop(); });
-      document.removeEventListener("visibilitychange", onVis); onVis = null;
+      document.removeEventListener("visibilitychange", onVis); window.removeEventListener("apphide", onVis); window.removeEventListener("appshow", onVis); onVis = null;
       say("💾 Save ho raha hai…"); stage("save");
       let ok;
       if (IS_APP) { await wq; await put("", true); ok = !wfail; }
@@ -1234,7 +1235,7 @@ const Video = (() => {
       if (ok && IS_APP && outUri) { $("#vplay").onclick = () => window.Native.openMedia(outUri, base); $("#vshare").onclick = () => window.Native.shareMedia(outUri, base); }
       ac.close();
     } catch (e) { say("❌ " + (e.message || "Video nahi bani")); S.del("vMaking"); }
-    if (onVis) document.removeEventListener("visibilitychange", onVis);
+    if (onVis) { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("apphide", onVis); window.removeEventListener("appshow", onVis); }
     busy = false; if (IS_APP) window.Native.keepScreenOn(false);
     if (IS_APP && window.Native.videoWork) window.Native.videoWork(false);
     const cv = $("#vbusy"); if (cv) cv.remove();
