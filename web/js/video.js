@@ -127,7 +127,7 @@ const Video = (() => {
         `YouTube video banana hai (Hindi, aam logon ke liye, aasaan bhasha). Vishay:\n${topic}\n\n` +
         `Sirf JSON do, aur kuch nahi:\n{"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)",` +
         `"slides":[{"emoji":"(1 emoji jo slide ko dikhaye)","heading":"(chhota, Hindi)","points":["(3 chhote point)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
-        `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche), 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, sirf jaankari hai — kisi nateeje ki guarantee nahi; apne case ke liye vakil se milein' + 'achhi lagi to like aur subscribe'. Video mein kahin bhi "pakka paisa wapas milega" ya "case jeet jaoge" jaisi guarantee mat do. ` +
+        `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche) aur uski narration ke ant mein ek chhoti line: "ye video sirf jaankari ke liye hai", 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, sirf jaankari hai — kisi nateeje ki guarantee nahi; apne case ke liye vakil se milein' + 'achhi lagi to like aur subscribe'. Video mein kahin bhi "pakka paisa wapas milega" ya "case jeet jaoge" jaisi guarantee mat do. ` +
         `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
         `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.` }] }],
         { system: "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, onPart: () => {} });
@@ -158,7 +158,14 @@ const Video = (() => {
           ${AI_VOICES.map(([k, t]) => `<option value="ai:${k}" ${S.get("vVoice", "ai:Charon") === "ai:" + k ? "selected" : ""}>🤖 AI insaan jaisi — ${t}</option>`).join("")}
           <option value="phone" ${S.get("vVoice", "") === "phone" ? "selected" : ""}>📱 Phone ki Indian awaaz</option></select></label>
         <button class="btn" id="vtest">▶️ Awaaz suno</button>
-        <button class="btn primary wide" id="vmake" style="margin-top:8px">🎬 Video banao</button>
+        <button class="btn" id="vcheck" style="margin-top:8px">🔍 AI se script jaanchwao</button>
+        <div id="vcres" class="small"></div>
+        <div class="small" style="margin-top:8px">
+          <label class="row"><input type="checkbox" class="vok"> Maine poori script khud padh li hai</label>
+          <label class="row"><input type="checkbox" class="vok"> Judgment / kanoon ki baat ka link ya source khud check kiya</label>
+          <label class="row"><input type="checkbox" class="vok"> Kisi peedit, bachche ya aam vyakti ka naam/pehchaan nahi hai, aur koi guarantee nahi di</label>
+        </div>
+        <button class="btn primary wide" id="vmake" style="margin-top:8px" disabled>🎬 Video banao</button>
         <div id="vprog" class="small" style="margin-top:6px"></div>
         <p class="muted small">Video banne mein utna hi time lagta hai jitni lambi video hai (3 min video ≈ 3-4 min). Tab tak screen chalu rakho aur app band mat karo. Awaaz: ⚙️ Settings mein chuni Indian awaaz.</p></div>`;
     $$("[data-copy]").forEach(b => b.onclick = () => copyText($("#" + b.dataset.copy).value));
@@ -166,6 +173,9 @@ const Video = (() => {
     $$("[data-rec]").forEach(b => b.onclick = () => recordSlide(+b.dataset.rec));
     $$("[data-play]").forEach(b => b.onclick = () => { const a = new Audio(URL.createObjectURL(voices[+b.dataset.play].blob)); a.play(); });
     $("#vmake").onclick = make;
+    const gate = () => { $("#vmake").disabled = $$(".vok").some(c => !c.checked); };
+    $$(".vok").forEach(c => c.onchange = gate);
+    $("#vcheck").onclick = checkScript;
     $("#vvoice").onchange = e => S.set("vVoice", e.target.value);
     $("#vtest").onclick = async () => {
       const v = $("#vvoice").value, t = (plan.slides[0] && plan.slides[0].narration) || "नमस्ते! आज हम एक ज़रूरी कानूनी सवाल समझेंगे।";
@@ -176,6 +186,22 @@ const Video = (() => {
         const a = new Audio(URL.createObjectURL(new Blob([buf], { type: "audio/wav" }))); a.play();
       } catch (e) { toast("❌ " + e.message + " — phone ki awaaz chalegi", 4000); }
     };
+  }
+
+  // second AI pass: look for risky claims before making the video
+  async function checkScript() {
+    readEdits();
+    const out = $("#vcres");
+    out.innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Jaanch ho rahi hai…';
+    const script = plan.slides.map((s, i) => `Slide ${i + 1}: ${s.heading}\n- ${(s.points || []).join("\n- ")}\nBolna: ${s.narration}`).join("\n\n");
+    try {
+      const r = await G.ask([{ role: "user", parts: [{ text:
+        "Ye ek shiksha (learning) wali YouTube video ki script hai. Ek savdhan kanooni editor ki tarah jaancho aur Hinglish mein sirf problems ki list do (har ek: slide no. · kya galat/jokhim · kaise sudhaarein):\n" +
+        "1) galat ya shaky kanooni tathya (dhara, saal, case naam jo pakka nahi), 2) koi guarantee ('pakka milega', 'jeet jaoge'), 3) kisi peedit/bachche/aam vyakti ka naam ya pehchaan, 4) judge/court/police/vyakti pe ilzaam ya apmaanjanak baat, 5) seedhi kanooni salah ka lehja ('aap ye karo to case jeet jaoge') jahan 'vakil se milein' hona chahiye, 6) chalte case pe faisla.\n" +
+        "Web se pakka karo jahan zaroori ho. Koi problem na ho to sirf likho: '✅ Koi bada jokhim nahi mila'. Andaaza mat lagao.\n\nTitle: " + plan.title + "\n\n" + script }] }],
+        { system: "Tum ek savdhan kanooni editor ho. Sirf problems batate ho, nayi baatein nahi jodte.", web: true, onPart: p => { out.innerHTML = MD.render(p.text); } });
+      out.innerHTML = MD.render(r.text) + ((r.sources || []).length ? "<div class='src'>🔗 " + r.sources.slice(0, 5).map(s => `<a href="${esc(s.uri)}" target="_blank" rel="noopener">${esc(s.title)}</a>`).join("") + "</div>" : "");
+    } catch (e) { out.textContent = "❌ " + (e.message || "Jaanch nahi hui"); }
   }
 
   function readEdits() {
@@ -253,6 +279,12 @@ const Video = (() => {
     }
     ctx.restore();
     if (channel) { ctx.textAlign = "right"; ctx.font = `${22 * sc}px ${F}`; ctx.fillStyle = "rgba(255,255,255,.6)"; ctx.fillText(channel, w - 24 * sc, 40 * sc); }
+    // always on screen: education only
+    ctx.textAlign = "left"; ctx.font = `bold ${18 * sc}px ${F}`;
+    const dl = "📚 सिर्फ शिक्षा/जानकारी के लिए — कानूनी सलाह नहीं";
+    const dw = ctx.measureText(dl).width + 20 * sc;
+    ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(14 * sc, 14 * sc, dw, 32 * sc);
+    ctx.fillStyle = "#ffd166"; ctx.fillText(dl, 24 * sc, 36 * sc);
   }
 
   async function saveBlob(blob, name, mime) {
