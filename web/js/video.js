@@ -449,7 +449,7 @@ const Video = (() => {
     lp.type = "lowpass"; lp.frequency.value = style === "calm" ? 1500 : 6000; bus.connect(lp); lp.connect(dest);
     const LOUD = style === "calm" ? 0.13 : 0.2, DUCK = LOUD * 0.32;
     bus.gain.setValueAtTime(LOUD, t0);
-    speech.forEach(([a, b]) => { bus.gain.setTargetAtTime(DUCK, t0 + a - 0.15, 0.06); bus.gain.setTargetAtTime(LOUD, t0 + b + 0.05, 0.3); });
+    speech.forEach(([a, b]) => { bus.gain.setTargetAtTime(DUCK, Math.max(0, t0 + a - 0.15), 0.06); bus.gain.setTargetAtTime(LOUD, t0 + b + 0.05, 0.3); });
     bus.gain.setTargetAtTime(0.0001, t0 + Math.max(0, total - 1.6), 0.5);
     const beat = 60 / MUSIC[style][1];
     const PROG = style === "desi" ? [[146.8, 220, 293.7], [146.8, 220, 293.7], [130.8, 196, 261.6], [146.8, 220, 293.7]]
@@ -671,9 +671,12 @@ const Video = (() => {
   // ---------- cartoon (two original characters) ----------
   function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
   // cartoon hand: palm + 4 fingers + thumb, pointing along the arm
-  function hand(ctx, x, y, dir, s, skin, line, side, wig) {
-    const F = [[-0.5, 13], [-0.17, 16], [0.17, 15], [0.5, 12]].map(([a, l]) => [dir + a + wig, l * s]);
-    const th = [dir - side * 1.25, 11 * s];
+  function hand(ctx, x, y, dir, s, skin, line, side, wig, shape, n) {
+    let F = [[-0.5, 13], [-0.17, 16], [0.17, 15], [0.5, 12]].map(([a, l]) => [dir + a + (wig || 0), l * s]);
+    let th = [dir - side * 1.25, 11 * s];
+    if (shape === "point") { F = [[dir, 22 * s]]; th = [dir - side * 1.1, 8 * s]; }
+    else if (shape === "fist") { F = [[dir - 0.3, 3 * s], [dir + 0.3, 3 * s]]; th = [dir - side * 1.2, 5 * s]; }
+    else if (shape === "count") { const k = Math.max(1, Math.min(4, n || 1)); F = F.slice(0, k).map((f, i) => [dir + (i - (k - 1) / 2) * 0.32, 16 * s]); th = [dir - side * 1.3, 5 * s]; }
     const seg = ([a, l], from) => { ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * from, y + Math.sin(a) * from); ctx.lineTo(x + Math.cos(a) * (10 * s + l), y + Math.sin(a) * (10 * s + l)); ctx.stroke(); };
     ctx.lineCap = "round";
     ctx.strokeStyle = line; ctx.lineWidth = 9.5 * s; [...F, th].forEach(f => seg(f, 4 * s));
@@ -681,6 +684,57 @@ const Video = (() => {
     ctx.strokeStyle = skin; ctx.lineWidth = 5 * s; [...F, th].forEach(f => seg(f, 6 * s));
     ctx.strokeStyle = line;
   }
+  // ---------- body language: different movements for different kinds of speech ----------
+  // positions are relative to the feet; shoulders at y=-120, chin ≈ -170, head centre -232
+  function poseOf(g, f, t, prog, m) {
+    const o = Math.sin(t * 5), o2 = Math.sin(t * 3.3 + 1), e = (m || 0) * 18;
+    const idle = sd => ({ x: sd * 80, y: -12, shape: "open" });
+    const H = (sd, x, y, shape, n) => ({ x, y, shape: shape || "open", n });
+    const P = { hands: [idle(-1), idle(1)], tilt: 0, dy: 0, lean: 0, shake: 0, eyesUp: 0, wig: 0 };
+    const set = (sd, h) => { P.hands[sd > 0 ? 1 : 0] = h; };
+    switch (g) {
+      case "explain": set(f, H(f, f * 118, -150 + o * 18 - e)); set(-f, H(-f, -f * 96, -78 + o2 * 12)); P.lean = 0.03 * f; P.wig = o * 0.15; break;
+      case "both_open": set(1, H(1, 128, -122 + o * 12 - e)); set(-1, H(-1, -128, -122 - o * 12 - e)); P.tilt = 0.05 * o2; break;
+      case "point_other": set(f, H(f, f * 158, -158 + o * 6, "point")); P.lean = 0.05 * f; break;
+      case "point_board": set(f, H(f, f * 58, -335 + o * 8, "point")); P.eyesUp = 1; P.tilt = -0.05 * f; break;
+      case "count": set(f, H(f, f * 100, -205, "count", 1 + Math.floor(Math.min(0.99, prog) * 3))); set(-f, H(-f, -f * 90, -70)); break;
+      case "shrug": set(1, H(1, 122, -96, "open")); set(-1, H(-1, -122, -96, "open")); P.dy = -6; P.tilt = 0.13 * f; break;
+      case "wag": set(f, H(f, f * 112 + Math.sin(t * 14) * 12, -232, "point")); set(-f, H(-f, -f * 80, -70, "fist")); P.lean = 0.06 * f; break;
+      case "heart": set(-f, H(-f, -f * 8, -112)); set(f, H(f, f * (110 + o * 20), -170 + o2 * 25)); P.tilt = 0.08 * Math.sin(t * 1.5); break;
+      case "laugh": set(1, H(1, 34, -58, "fist")); set(-1, H(-1, -34, -58, "fist")); P.dy = Math.abs(Math.sin(t * 13)) * -6; P.tilt = 0.06 * Math.sin(t * 9); break;
+      case "think": set(f, H(f, f * 18, -168, "fist")); set(-f, H(-f, f * 8, -74, "fist")); P.tilt = -0.09 * f; P.eyesUp = 1; break;
+      case "scratch": set(-f, H(-f, -f * 62, -292 + Math.sin(t * 16) * 5)); P.tilt = 0.1 * f; break;
+      case "facepalm": set(f, H(f, f * 6, -262)); P.tilt = 0.06; break;
+      case "clap": { const c = 14 + Math.abs(Math.sin(t * 11)) * 22; set(1, H(1, c, -132)); set(-1, H(-1, -c, -132)); break; }
+      case "wave": set(f, H(f, f * 128 + Math.sin(t * 10) * 26, -262)); P.wig = Math.sin(t * 10) * 0.2; break;
+      case "hip": set(1, H(1, 82, -72, "fist")); set(-1, H(-1, -82, -72, "fist")); P.lean = -0.02 * f; break;
+      case "nod": P.tilt = Math.sin(t * 4) * 0.05; break;
+    }
+    return P;
+  }
+  const NEG = /नहीं|नही|मत |\bnahi(n)?\b|\bmat\b|\bno\b|\bnot\b|\bnever\b|n't\b/i;
+  const NUMW = /(^|\s)(1|2|3|ek|do|teen|pehl[aie]|doosr[aie]|teesr[aie]|first|second|third|one|two|three|step)(\s|,|\.|$)|पहल|दूसर|तीसर|(^|\s)(एक|दो|तीन)(\s|$)/i;
+  // which movement fits this line: mood first, then what is being said, then a varied pick
+  function gestureFor(sl, idx, speaking, prog) {
+    const txt = (sl && sl.narration) || "", mood = (sl && sl.mood) || "", q = /\?\s*$|\?["'”]?\s*$/.test(txt.trim());
+    if (speaking) {
+      if (mood === "daant") return "wag";
+      if (mood === "shayari") return "heart";
+      if (mood === "funny") return prog > 0.82 ? "laugh" : "both_open";
+      if (mood === "serious") return NUMW.test(txt) ? "count" : "point_board";
+      if (q && sl.who === "A") return prog < 0.6 ? "shrug" : "think";
+      if (NUMW.test(txt)) return "count";
+      const pool = ["explain", "point_other", "both_open", "point_board", "explain", "hip", "count"];
+      return pool[(idx * 5 + (prog > 0.55 ? 3 : 0)) % pool.length];
+    }
+    if (mood === "funny") return prog > 0.35 ? "laugh" : "nod";
+    if (mood === "daant") return prog > 0.5 ? "facepalm" : "scratch";
+    if (mood === "shayari") return prog > 0.8 ? "clap" : "nod";
+    if (q) return "think";
+    if (mood === "serious") return "nod";
+    return (idx % 4 === 1) ? "hip" : "nod";
+  }
+
   // Original characters. Hindi channel: Pappu + Chacha. Global channel: Leo + Priya.
   const LOOKS = {
     pappu: { skin: "#e0ac7e", shirt: "#f4a72b", hair: "spiky", hc: "#1d1a18", brow: "#1d1a18", chest: "star" },
@@ -690,10 +744,11 @@ const Video = (() => {
   };
   const lookOf = who => LOOKS[GL() ? (who === "A" ? "leo" : "priya") : (who === "A" ? "pappu" : "chacha")];
   // mouth 0..1 (open), face: +1 looks right, -1 looks left
-  function drawChar(ctx, x, y, s, who, mouth, blink, talking, tsec, face, emo) {
+  function drawChar(ctx, x, y, s, who, mouth, blink, talking, tsec, face, emo, P) {
     const L = lookOf(who), ph = who === "A" ? 0 : 2;
+    P = P || poseOf(talking ? "explain" : "nod", face, tsec, 0.5, mouth);
     const bob = emo === "happy" ? Math.abs(Math.sin(tsec * 13)) * -5 * s : emo === "serious" ? 0 : talking ? Math.sin(tsec * 9) * 2.5 * s : Math.sin(tsec * 1.6 + ph) * 1.5 * s;
-    ctx.save(); ctx.translate(x, y + bob);
+    ctx.save(); ctx.translate(x + Math.sin(tsec * 0.7 + ph) * 3 * s, y + bob + (P.dy || 0) * s); ctx.rotate(P.lean || 0);
     const shirt = L.shirt, skin = L.skin, line = "#2b2420";
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line; ctx.lineJoin = "round"; ctx.lineCap = "round";
     if (L.hair === "braid") { ctx.fillStyle = L.hc; ctx.beginPath(); ctx.ellipse(0, -215 * s, 76 * s, 92 * s, 0, 0, 7); ctx.fill(); }
@@ -712,19 +767,11 @@ const Video = (() => {
     }
     // braid falls over one shoulder
     if (L.hair === "braid") { ctx.fillStyle = L.hc; const bs = -face; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.ellipse(bs * 58 * s, (-178 + k * 21) * s, (13 - k) * s, 13 * s, 0, 0, 7); ctx.fill(); } ctx.fillStyle = "#e2533c"; ctx.beginPath(); ctx.arc(bs * 58 * s, -78 * s, 6 * s, 0, 7); ctx.fill(); }
-    // arms: the talker gestures
-    const g = talking ? Math.sin(tsec * 5) * 0.35 : 0;
-    [-1, 1].forEach(side => {
-      const up = talking && side === face;
-      const ang = up ? -0.9 + g : 0.25;
-      const sx = side * 70 * s, sy = -120 * s, ex = sx + side * Math.cos(ang) * 70 * s * (up ? 0.9 : 0.3), ey = sy + (up ? Math.sin(ang) * 70 * s : 95 * s);
-      ctx.strokeStyle = shirt; ctx.lineWidth = 26 * s; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-      hand(ctx, ex, ey, Math.atan2(ey - sy, ex - sx), s, skin, line, side, up ? Math.sin(tsec * 7) * 0.12 : 0);
-    });
     // neck + head
     ctx.fillStyle = skin; ctx.fillRect(-18 * s, -172 * s, 36 * s, 30 * s);
-    const hy = -232 * s, nod = !talking ? Math.sin(tsec * 2.2 + ph) * 0.04 : 0;
-    ctx.translate(0, hy); ctx.rotate(nod);
+    const hy = -232 * s, nod = (!talking ? Math.sin(tsec * 2.2 + ph) * 0.04 : (mouth || 0) * 0.05) + (P.tilt || 0);
+    ctx.save(); ctx.translate(0, hy); ctx.rotate(nod);
+    if (P.shake) ctx.translate(Math.sin(tsec * 18) * 6 * s * P.shake, 0);
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line;
     ctx.beginPath(); ctx.ellipse(0, 0, 66 * s, 72 * s, 0, 0, 7); ctx.fill(); ctx.stroke();
     [-1, 1].forEach(sd => { ctx.fillStyle = skin; ctx.beginPath(); ctx.ellipse(sd * 66 * s, 6 * s, 12 * s, 17 * s, 0, 0, 7); ctx.fill(); ctx.stroke();
@@ -749,14 +796,14 @@ const Video = (() => {
       ctx.quadraticCurveTo(56 * s, -40 * s, 4 * s, -50 * s); ctx.lineTo(-4 * s, -50 * s); ctx.quadraticCurveTo(-56 * s, -40 * s, -68 * s, 4 * s); ctx.fill();
     }
     // eyes (look at the other character)
-    const ex = face * 5 * s;
+    const ex = face * 5 * s - (P.eyesUp ? 0 : 0), eyY = P.eyesUp ? -5 * s : 0;
     ctx.strokeStyle = line;
     if (emo === "happy" && !talking) { // laughing: eyes squeezed shut
       ctx.lineWidth = 3.5 * s; [-24, 24].forEach(dx => { ctx.beginPath(); ctx.arc(dx * s, -2 * s, 10 * s, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); });
     } else [-24, 24].forEach(dx => {
       if (blink) { ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo((dx - 10) * s, -6 * s); ctx.lineTo((dx + 10) * s, -6 * s); ctx.stroke(); return; }
       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(dx * s, -6 * s, 12 * s, 14 * s, 0, 0, 7); ctx.fill(); ctx.lineWidth = 2.5 * s; ctx.stroke();
-      ctx.fillStyle = line; ctx.beginPath(); ctx.arc(dx * s + ex, -4 * s, 6 * s, 0, 7); ctx.fill();
+      ctx.fillStyle = line; ctx.beginPath(); ctx.arc(dx * s + ex, -4 * s + eyY, 6 * s, 0, 7); ctx.fill();
       if (L.lashes) { const o = Math.sign(dx); ctx.lineWidth = 3 * s; ctx.beginPath(); ctx.moveTo((dx + o * 9) * s, -16 * s); ctx.lineTo((dx + o * 17) * s, -22 * s); ctx.stroke(); }
     });
     // eyebrows (raised while talking)
@@ -786,6 +833,23 @@ const Video = (() => {
     } else if (emo === "sad" || emo === "serious") { ctx.beginPath(); ctx.arc(0, my + (emo === "sad" ? 14 : 4) * s, 14 * s, Math.PI + 0.5, -0.5); ctx.stroke(); }
     else { if (L.lashes) { ctx.strokeStyle = "#a63a46"; ctx.lineWidth = 4.5 * s; } ctx.beginPath(); ctx.arc(0, my - 12 * s, 18 * s, 0.35, Math.PI - 0.35); ctx.stroke(); ctx.strokeStyle = line; }
     if (L.mustache) { ctx.fillStyle = "#e8e6e1"; ctx.beginPath(); ctx.moveTo(-30 * s, 30 * s); ctx.quadraticCurveTo(0, 18 * s, 30 * s, 30 * s); ctx.quadraticCurveTo(0, 38 * s, -30 * s, 30 * s); ctx.fill(); }
+    ctx.restore(); // head
+    // arms: shoulder → elbow → hand, so hands can reach chin, head, belly, board…
+    const A1 = 58 * s, A2 = 58 * s;
+    [-1, 1].forEach(side => {
+      const h = P.hands[side > 0 ? 1 : 0], sx = side * 66 * s, sy = -122 * s;
+      let hx = h.x * s, hy2 = h.y * s;
+      let dx = hx - sx, dy = hy2 - sy, d = Math.hypot(dx, dy);
+      const maxD = A1 + A2 - 2 * s; if (d > maxD) { hx = sx + dx / d * maxD; hy2 = sy + dy / d * maxD; dx = hx - sx; dy = hy2 - sy; d = maxD; }
+      d = Math.max(d, 8 * s);
+      const base = Math.atan2(dy, dx), k = Math.acos(Math.max(-1, Math.min(1, (A1 * A1 + d * d - A2 * A2) / (2 * A1 * d))));
+      const c1 = [sx + Math.cos(base + k) * A1, sy + Math.sin(base + k) * A1], c2 = [sx + Math.cos(base - k) * A1, sy + Math.sin(base - k) * A1];
+      const el = (c1[0] * side + c1[1] * 0.3) > (c2[0] * side + c2[1] * 0.3) ? c1 : c2; // elbow out and down
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.strokeStyle = line; ctx.lineWidth = 30 * s; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(el[0], el[1]); ctx.lineTo(hx, hy2); ctx.stroke();
+      ctx.strokeStyle = shirt; ctx.lineWidth = 23 * s; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(el[0], el[1]); ctx.lineTo(hx, hy2); ctx.stroke();
+      hand(ctx, hx, hy2, Math.atan2(hy2 - el[1], hx - el[0]), s, skin, line, side, P.wig || 0, h.shape, h.n);
+    });
     ctx.restore();
   }
   // a different place for each kind of topic, so videos don't all look the same
@@ -999,8 +1063,15 @@ const Video = (() => {
       return end ? "happy" : "";
     };
     const eA = emoOf("A"), eB = emoOf("B");
-    drawChar(ctx, ax, cy, cs, "A", who === "A" ? mouth : 0, bl(0), who === "A" || (end && Math.sin(tsec * 6) > 0), tsec, 1, eA);
-    drawChar(ctx, bx, cy, cs, "B", who === "B" ? mouth : 0, bl(1.7), who === "B", tsec, -1, eB);
+    const gOf = (k, f) => {
+      if (kind === "end") return poseOf("wave", f, tsec, prog, 0);
+      if (kind === "title") return poseOf(k === "A" ? "wave" : "hip", f, tsec, prog, 0);
+      const sp = who === k, g = gestureFor(s, idx, sp, prog), P = poseOf(g, f, tsec, prog, sp ? mouth : 0);
+      if (sp && NEG.test(s.narration || "") && prog < 0.45) P.shake = 1; // "nahi" → head shake
+      return P;
+    };
+    drawChar(ctx, ax, cy, cs, "A", who === "A" ? mouth : 0, bl(0), who === "A" || (end && Math.sin(tsec * 6) > 0), tsec, 1, eA, gOf("A", 1));
+    drawChar(ctx, bx, cy, cs, "B", who === "B" ? mouth : 0, bl(1.7), who === "B", tsec, -1, eB, gOf("B", -1));
     // mood stickers
     const sticker = (x, e) => { const t = e === "happy" ? "😂" : e === "angry" ? "💢" : e === "sad" ? "😳" : ""; if (!t) return; ctx.font = `${40 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(t, x + 60 * sc, cy - (v ? 340 : 370) * cs / sc * sc + Math.sin(tsec * 6) * 4 * sc); };
     sticker(ax, eA); sticker(bx, eB);
@@ -1169,5 +1240,5 @@ const Video = (() => {
     const cv = $("#vbusy"); if (cv) cv.remove();
   }
 
-  return { _music: musicPlayer, _sfx: sfx, render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, "slide", s, extra && extra.prog != null ? extra.prog : 0.5, 2, 8, "Kanoon Aasaan", tsec, m); } };
+  return { _draw: drawChar, _pose: poseOf, _music: musicPlayer, _sfx: sfx, render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, extra && extra.endKind ? "end" : "slide", s, extra && extra.prog != null ? extra.prog : 0.5, extra && extra.idx != null ? extra.idx : 2, 8, "Kanoon Aasaan", tsec, m); } };
 })();
