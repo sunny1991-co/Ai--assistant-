@@ -79,13 +79,14 @@ const Finance = (() => {
 
   async function ask(q) {
     const p = prof(), d = await myFunds();
+    if (d.err && !ask.warned) { ask.warned = true; toast("⚠️ Funds ka data nahi aaya: " + d.err + " — phir bhi poochhna ho to dobara dabao", 5000); return; }
     const data = {
       mera_profile: { umar: p.age || "?", lakshya: p.goal || "?", risk: p.risk || "?", emergency_fund: p.emerg || "?", insurance: p.ins || "?" },
-      mutual_funds: d.err ? "nahi mila: " + d.err : d,
+      mutual_funds: d.err ? "DATA_NAHI_MILA (" + d.err + ") — user ke paas funds HAIN, bas yahan nahi aaye; ye mat maano ki investment zero hai" : d,
     };
     const txt = "[💼 Finance Guide] Tum mere personal finance guide ho (SEBI-registered advisor nahi). Niyam: seedhi Hinglish, chhote points; mere data aur goal ke hisaab se samjhao; " +
       "diversification aur risk dekho (ek hi category mein zyada paisa?); fund badalne ki baat ho to pehle app ka verdict/rank dekho, phir tax (equity 1 saal se pehle 20%, baad mein ₹1.25 lakh se upar 12.5%) aur exit load (~1% 1 saal se pehle) ka kharcha batao; " +
-      "kisi ek fund/stock ki pakki tip ya 'guaranteed return' mat do; emergency fund aur insurance pehle; bada faisla lene se pehle SEBI-registered RIA se pakka karne ko kaho.\n\n" +
+      "jo data nahi diya gaya (jaise umar, income, kul paisa) uska andaaza mat lagao — zaroorat ho to mujhse poochho; kisi ek fund/stock ki pakki tip ya 'guaranteed return' mat do; emergency fund aur insurance pehle; bada faisla lene se pehle SEBI-registered RIA se pakka karne ko kaho.\n\n" +
       "Mera data:\n" + JSON.stringify(data) + "\n\nMera sawaal: " + q;
     Chat.start(txt, { send: true, web: false });
   }
