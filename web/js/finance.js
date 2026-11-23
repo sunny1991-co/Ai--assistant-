@@ -7,8 +7,8 @@ const Finance = (() => {
 
   async function myFunds() {
     if (!IS_APP) return { err: "Mutual funds sirf phone pe (trading app se) dikhte hain" };
+    if (!Monitor.linked()) return { err: "NSE app se alag kar diya hai, isliye funds yahan apne aap nahi aate. Apne funds ki baat chat mein likh kar poochh sakte ho." };
     const tok = S.get("tradeToken", "");
-    if (!tok) return { err: "Trading link ka token nahi laga — ⚙️ Settings > 🩺 Monitor" };
     const r = await nativeCall("http", "GET", TRADING, JSON.stringify({ "X-Sahayak-Token": tok }), "");
     if (r.status !== 200) return { err: r.status === 0 ? "Trading app band hai (Termux)" : "Trading link ne mana kiya (" + r.status + ")" };
     try { return JSON.parse(r.text).mutual_funds || { funds: [] }; } catch (e) { return { err: "Data samajh nahi aaya" }; }
