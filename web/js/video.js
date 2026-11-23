@@ -265,8 +265,9 @@ const Video = (() => {
       `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nTopic: ${topic}\n` + (cat === "hindi" ? "" : `Format: ${GFMT[fmt]}\n`) +
       `\nStyle: natural spoken English, short sentences, contractions, light clean humor, real reactions ("wait, what?", "no way!"). The very first line must hook in 3 seconds with a surprising fact or question. Vary rhythm. Never say "in this video we will". No filler, no repeated catchphrases. End: B gives a one-line recap, A asks viewers a question for the comments, then a quick "subscribe for more".\n` +
       `Accuracy and respect (strict): only well-established facts; never invent numbers, dates, names or quotes — if unsure, say it more generally. Respect every culture and religion: explain, never mock; no stereotypes; humor is never at a group's expense. No song lyrics or movie dialogue. No guarantees or personal advice.\n` +
-      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
+      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(room | thana | court | bazaar | ghar | gaon | sadak | office | hospital | school)","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
       `About ${nl} lines, mostly alternating (sometimes one speaker says two lines).\n` +
+      `STAGE: add top-level "cast":{"A":"(none | police | vakil | judge | dukaandaar | office | doctor | kisaan)","B":"(same list)"} — costumes for this story (e.g. one plays a shopkeeper, the other a police officer); "none" = their usual clothes. For each line pick "scene" where it happens; keep the same scene for several lines and change only when the story moves. Costumed characters still only share general information, never personal legal/medical/financial advice.\n` +
       `ENTERTAINMENT (very important — it must be fun to watch, not a dry answer): include 2-3 clean jokes or puns that fit the moment (mood "funny"), ` +
       `one short ORIGINAL two-line rhyme or poetic line, e.g. B sums up a point in verse (mood "shayari"; never quote famous poems or lyrics), ` +
       `one moment where ${nB} playfully scolds ${nA} for a silly idea or mistake (mood "daant"; affectionate, never mean), ` +
@@ -294,9 +295,10 @@ const Video = (() => {
     const nl = { short: 8, mid: 18, long: 32 }[len];
     const CARTOON = `YouTube cartoon video ki script banani hai — do original cartoon kirdaar aapas mein baat karte hain (Hindi, aam logon ke liye). Vishay:\n${topic}\n\n` +
       `Kirdaar: A = "${nA}" — aam aadmi, darshak ki tarah sawaal puchta hai, kabhi confuse hota hai, halka mazaak karta hai. B = "${nB}" — samajhdaar bade, dheeraj se aasaan misaal dekar samjhate hain. B vakil NAHI hai — jaankari deta hai, salah nahi; zaroorat pe kehta hai "apne case ke liye vakil se milna".\n` +
-      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
+      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(room | thana | court | bazaar | ghar | gaon | sadak | office | hospital | school)","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
       `Lagbhag ${nl} lines, A aur B baari-baari (kabhi ek hi kirdaar 2 line bhi). Shuru: A ek aam zindagi ki pareshani/sawaal se (pehli line 3 second mein dhyaan khinche). B ki pehli line mein chhota sa: "dekho, ye sirf jaankari hai, kanooni salah nahi". Beech mein: seedha jawab, kanoon/court kya kehta hai (judgment diya ho to naam-saal), kya karein — steps. A beech-beech mein sawaal/shaq kare taaki baat asli lage. Aakhir: B saar + "apne case ke liye vakil se milna, nateeje ki guarantee koi nahi de sakta"; A darshakon se: "aapke saath aisa hua hai? comment mein batao, aur like-subscribe kar do". ` +
       `Mazaak halka aur saaf ho — peedit, jaati, dharm, aurat/aadmi ya kisi samuday pe mazaak nahi. Kitaabi ya ratti hui bhasha nahi. ` +
+      `MANCH: top-level "cast":{"A":"(none | police | vakil | judge | dukaandaar | office | doctor | kisaan)","B":"(wahi list)"} do — is kahani mein kaun kya bana hai (jaise ek garib dukaandaar, doosra police wala; "none" = roz ke kapde). Har line ka "scene" chuno ki baat kahan ho rahi hai; kai line ek hi jagah rakho, kahani aage badhe tabhi badlo. Vakil/police ki dress mein bhi kirdaar sirf aam jaankari dete hain, kanooni salah nahi. ` +
       `MANORANJAN (bahut zaroori — seedha-saadha jawab nahi, sunne wale ko maza aaye): 2-3 jagah halka saaf chutkula ya mazedaar baat jo vishay se judi ho (mood "funny"); ` +
       `ek chhoti APNI banayi 2 line ki shayari, jaise ${nB} kisi baat ko sher mein samjhaye (mood "shayari"; kisi mashhoor shayar/gaane ki line nahi); ` +
       `ek jagah ${nB} ${nA} ko pyaar se daant lagaye jab wo koi galat/bewakoofi wali baat kare (mood "daant", jaise "arre buddhu!" — apmaan nahi); ` +
@@ -314,7 +316,10 @@ const Video = (() => {
       const t = r.text.replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
       plan = JSON.parse(t);
       if (style === "cartoon") {
-        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^b/i.test(l.who || "") ? "B" : "A", narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60), mood: ["funny", "serious", "daant", "shayari"].includes(String(l.mood || "").toLowerCase()) ? String(l.mood).toLowerCase() : "" }));
+        plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: /^b/i.test(l.who || "") ? "B" : "A", narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60), mood: ["funny", "serious", "daant", "shayari"].includes(String(l.mood || "").toLowerCase()) ? String(l.mood).toLowerCase() : "",
+          scene: SCENES[String(l.scene || "").toLowerCase()] ? String(l.scene).toLowerCase() : "" }));
+        const okD = d => (DRESS[String(d || "").toLowerCase()] ? String(d).toLowerCase() : "");
+        plan.cast = { A: okD((plan.cast || {}).A), B: okD((plan.cast || {}).B) };
         plan.style = "cartoon"; plan.names = { A: nA, B: nB };
       }
       if (!Array.isArray(plan.slides) || !plan.slides.length) throw new Error("script nahi mili — dobara dabao");
@@ -338,6 +343,7 @@ const Video = (() => {
         <div class="row"><button class="btn" data-copy="vt">📋 Title</button><button class="btn" data-copy="vd">📋 Description</button><button class="btn" data-copy="vg">📋 Tags</button><button class="btn" id="vthumb">🖼️ Thumbnail save</button></div></div>
       ${p.style === "cartoon" ? p.slides.map((s, i) => `<div class="card"><div class="row"><b>${i + 1}.</b>
         <select data-mood="${i}">${[["", "🙂 Normal"], ["funny", "😂 Mazaak"], ["serious", "😐 Gambhir"], ["daant", "😤 Daant"], ["shayari", "✍️ Shayari"]].map(([k, t]) => `<option value="${k}" ${(s.mood || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+        <select data-scene="${i}">${Object.entries(SCENES).map(([k, t]) => `<option value="${k}" ${(s.scene || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select>
         <select data-who="${i}"><option value="A" ${s.who === "A" ? "selected" : ""}>${GL() ? "🧳" : "🙋"} ${esc(p.names.A)}</option><option value="B" ${s.who === "B" ? "selected" : ""}>${GL() ? "🙋‍♀️" : "👴"} ${esc(p.names.B)}</option></select></div>
         <label class="field">🔊 Bolna hai<textarea data-n="${i}" rows="2">${esc(s.narration || "")}</textarea></label>
         <label class="field">🟩 Board pe<input data-h="${i}" value="${esc(s.heading || "")}"></label>
@@ -352,6 +358,8 @@ const Video = (() => {
       <div class="card">${p.style === "cartoon" ? `
         <label class="field">🙋 ${esc(p.names.A)} ki awaaz<select id="vva">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vA() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
         <label class="field">👴 ${esc(p.names.B)} ki awaaz<select id="vvb">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vB() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <div class="row"><label class="field" style="flex:1">👕 ${esc(p.names.A)} ki dress<select id="vda">${Object.entries(DRESSES).map(([k, t]) => `<option value="${k}" ${((p.cast || {}).A || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+          <label class="field" style="flex:1">👕 ${esc(p.names.B)} ki dress<select id="vdb">${Object.entries(DRESSES).map(([k, t]) => `<option value="${k}" ${((p.cast || {}).B || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
         <select id="vvoice" hidden><option value="ai:${vA()}"></option></select>` : `
         <label class="field">Awaaz (jo slide aapne record nahi ki)<select id="vvoice">
           ${AI_VOICES.map(([k, t]) => `<option value="ai:${k}" ${S.get("vVoice", "ai:Charon") === "ai:" + k ? "selected" : ""}>🤖 AI insaan jaisi — ${t}</option>`).join("")}
@@ -572,7 +580,8 @@ const Video = (() => {
   function readEdits0() {
     const p = plan;
     p.title = $("#vt").value; p.description = $("#vd").value; p.tags = $("#vg").value.split(",").map(x => x.trim()).filter(Boolean); p.thumbnail_text = $("#vth").value;
-    if (p.style === "cartoon") { p.slides.forEach((s, i) => { s.who = $(`[data-who="${i}"]`).value; s.mood = $(`[data-mood="${i}"]`).value; s.heading = $(`[data-h="${i}"]`).value.trim(); s.narration = $(`[data-n="${i}"]`).value.trim(); }); return; }
+    if (p.style === "cartoon" && $("#vda")) p.cast = { A: $("#vda").value, B: $("#vdb").value };
+    if (p.style === "cartoon") { p.slides.forEach((s, i) => { s.who = $(`[data-who="${i}"]`).value; s.mood = $(`[data-mood="${i}"]`).value; s.scene = $(`[data-scene="${i}"]`).value; s.heading = $(`[data-h="${i}"]`).value.trim(); s.narration = $(`[data-n="${i}"]`).value.trim(); }); return; }
     p.slides.forEach((s, i) => { s.heading = $(`[data-h="${i}"]`).value; s.points = $(`[data-p="${i}"]`).value.split("\n").map(x => x.trim()).filter(Boolean); s.narration = $(`[data-n="${i}"]`).value.trim(); });
   }
 
@@ -684,6 +693,20 @@ const Video = (() => {
     ctx.strokeStyle = skin; ctx.lineWidth = 5 * s; [...F, th].forEach(f => seg(f, 6 * s));
     ctx.strokeStyle = line;
   }
+  // ---------- story places and costumes (all drawn here → free, no limits) ----------
+  const SCENES = { "": "🏠 Kamra (board)", thana: "🚓 Thana", court: "⚖️ Court", bazaar: "🧺 Bazaar", ghar: "🛋️ Ghar", gaon: "🌾 Gaon", sadak: "🛣️ Sadak / check-post", office: "💼 Office / bank", hospital: "🏥 Hospital", school: "🏫 School" };
+  const DRESSES = { "": "Apne kapde", police: "👮 Police", vakil: "⚖️ Vakil", judge: "👨‍⚖️ Judge", dukaandaar: "🧺 Garib dukaandaar", office: "👔 Office wala", doctor: "🩺 Doctor", kisaan: "🌾 Kisaan" };
+  const DRESS = {
+    police: { shirt: "#c9ad72", chest: "police", hat: "police" },
+    vakil: { shirt: "#22222a", chest: "vakil" },
+    judge: { shirt: "#141418", chest: "judge" },
+    dukaandaar: { shirt: "#efe8d8", chest: "gamchha" },
+    office: { shirt: "#9cc3e6", chest: "tie" },
+    doctor: { shirt: "#f7f7f7", chest: "doctor" },
+    kisaan: { shirt: "#f4f1e6", chest: "kurta2", hat: "safa" },
+  };
+  const LABEL_SCENES = new Set(["thana", "court", "bazaar", "ghar", "gaon", "sadak", "office", "hospital"]);
+
   // ---------- body language: different movements for different kinds of speech ----------
   // positions are relative to the feet; shoulders at y=-120, chin ≈ -170, head centre -232
   function poseOf(g, f, t, prog, m) {
@@ -749,18 +772,45 @@ const Video = (() => {
     P = P || poseOf(talking ? "explain" : "nod", face, tsec, 0.5, mouth);
     const bob = emo === "happy" ? Math.abs(Math.sin(tsec * 13)) * -5 * s : emo === "serious" ? 0 : talking ? Math.sin(tsec * 9) * 2.5 * s : Math.sin(tsec * 1.6 + ph) * 1.5 * s;
     ctx.save(); ctx.translate(x + Math.sin(tsec * 0.7 + ph) * 3 * s, y + bob + (P.dy || 0) * s); ctx.rotate(P.lean || 0);
-    const shirt = L.shirt, skin = L.skin, line = "#2b2420";
+    const DR = DRESS[P.dress] || null, chest = DR ? DR.chest : L.chest;
+    const shirt = DR ? DR.shirt : L.shirt, skin = L.skin, line = "#2b2420";
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line; ctx.lineJoin = "round"; ctx.lineCap = "round";
     if (L.hair === "braid") { ctx.fillStyle = L.hc; ctx.beginPath(); ctx.ellipse(0, -215 * s, 76 * s, 92 * s, 0, 0, 7); ctx.fill(); }
     // body
     ctx.fillStyle = shirt; rr(ctx, -78 * s, -150 * s, 156 * s, 160 * s, 46 * s); ctx.fill(); ctx.stroke();
-    if (L.chest === "buttons") { ctx.beginPath(); ctx.moveTo(0, -140 * s); ctx.lineTo(0, -40 * s); ctx.stroke(); [-110, -85, -60].forEach(by => { ctx.fillStyle = "#f3e6c8"; ctx.beginPath(); ctx.arc(8 * s, by * s, 4 * s, 0, 7); ctx.fill(); }); }
-    else if (L.chest === "star") { ctx.fillStyle = "#fff"; ctx.font = `bold ${26 * s}px sans-serif`; ctx.textAlign = "center"; ctx.fillText("★", 0, -70 * s); }
-    else if (L.chest === "hood") {
+    if (chest === "police") {
+      ctx.fillStyle = "#5a3d1e"; ctx.fillRect(-76 * s, -46 * s, 152 * s, 14 * s); ctx.fillStyle = "#d9b44a"; ctx.fillRect(-10 * s, -48 * s, 20 * s, 18 * s);
+      ctx.strokeStyle = "rgba(60,40,10,.45)"; ctx.lineWidth = 3 * s; [-1, 1].forEach(d => { ctx.strokeRect((d > 0 ? 14 : -50) * s, -118 * s, 36 * s, 30 * s); });
+      ctx.fillStyle = "#3b2a14"; [-1, 1].forEach(d => ctx.fillRect((d > 0 ? 50 : -78) * s, -150 * s, 28 * s, 10 * s));
+      ctx.fillStyle = "#e9c46a"; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = (k % 2 ? 6 : 13) * s; ctx.lineTo(-32 * s + Math.cos(a) * r, -104 * s + Math.sin(a) * r); } ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#1d1d22"; ctx.fillRect(18 * s, -132 * s, 30 * s, 8 * s); ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
+    } else if (chest === "vakil" || chest === "judge") {
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(-26 * s, -150 * s); ctx.lineTo(0, -95 * s); ctx.lineTo(26 * s, -150 * s); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.fillRect(-11 * s, -146 * s, 9 * s, 34 * s); ctx.fillRect(2 * s, -146 * s, 9 * s, 34 * s);
+      ctx.strokeStyle = "rgba(255,255,255,.18)"; ctx.lineWidth = 3 * s; [-1, 1].forEach(d => { ctx.beginPath(); ctx.moveTo(d * 28 * s, -148 * s); ctx.lineTo(d * 12 * s, -60 * s); ctx.stroke(); });
+      if (chest === "judge") { ctx.strokeStyle = "rgba(255,255,255,.08)"; for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.moveTo(k * 20 * s, -80 * s); ctx.lineTo(k * 24 * s, 8 * s); ctx.stroke(); } }
+      ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
+    } else if (chest === "gamchha") {
+      ctx.fillStyle = "rgba(0,0,0,.08)"; ctx.beginPath(); ctx.ellipse(0, -148 * s, 34 * s, 14 * s, 0, 0, Math.PI); ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.moveTo(-70 * s, -150 * s); ctx.lineTo(-40 * s, -150 * s); ctx.lineTo(70 * s, -20 * s); ctx.lineTo(40 * s, -10 * s); ctx.closePath(); ctx.fillStyle = "#c1121f"; ctx.fill(); ctx.clip();
+      ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = 3 * s; for (let k = -10; k < 14; k++) { ctx.beginPath(); ctx.moveTo(k * 14 * s, -160 * s); ctx.lineTo(k * 14 * s + 160 * s, 0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(k * 14 * s, 0); ctx.lineTo(k * 14 * s + 160 * s, -160 * s); ctx.stroke(); }
+      ctx.restore(); ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
+    } else if (chest === "tie") {
+      ctx.fillStyle = "#fff"; [-1, 1].forEach(d => { ctx.beginPath(); ctx.moveTo(0, -128 * s); ctx.lineTo(d * 34 * s, -152 * s); ctx.lineTo(d * 10 * s, -150 * s); ctx.fill(); });
+      ctx.fillStyle = "#b5172f"; ctx.beginPath(); ctx.moveTo(-8 * s, -136 * s); ctx.lineTo(8 * s, -136 * s); ctx.lineTo(13 * s, -60 * s); ctx.lineTo(0, -46 * s); ctx.lineTo(-13 * s, -60 * s); ctx.closePath(); ctx.fill();
+    } else if (chest === "doctor") {
+      ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 3 * s; [-1, 1].forEach(d => { ctx.beginPath(); ctx.moveTo(d * 26 * s, -148 * s); ctx.lineTo(d * 6 * s, -40 * s); ctx.stroke(); });
+      ctx.strokeRect(26 * s, -100 * s, 30 * s, 26 * s); ctx.fillStyle = "#1d6fd1"; ctx.fillRect(34 * s, -110 * s, 4 * s, 18 * s);
+      ctx.strokeStyle = "#6b7280"; ctx.lineWidth = 5 * s; ctx.beginPath(); ctx.moveTo(-30 * s, -150 * s); ctx.quadraticCurveTo(-46 * s, -100 * s, -20 * s, -80 * s); ctx.stroke(); ctx.beginPath(); ctx.moveTo(30 * s, -150 * s); ctx.quadraticCurveTo(20 * s, -110 * s, -20 * s, -80 * s); ctx.stroke();
+      ctx.fillStyle = "#c0c4cc"; ctx.beginPath(); ctx.arc(-20 * s, -74 * s, 10 * s, 0, 7); ctx.fill(); ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
+    } else if (chest === "kurta2") { ctx.beginPath(); ctx.moveTo(0, -145 * s); ctx.lineTo(0, -90 * s); ctx.stroke(); }
+    else if (chest === "buttons") { ctx.beginPath(); ctx.moveTo(0, -140 * s); ctx.lineTo(0, -40 * s); ctx.stroke(); [-110, -85, -60].forEach(by => { ctx.fillStyle = "#f3e6c8"; ctx.beginPath(); ctx.arc(8 * s, by * s, 4 * s, 0, 7); ctx.fill(); }); }
+    else if (chest === "star") { ctx.fillStyle = "#fff"; ctx.font = `bold ${26 * s}px sans-serif`; ctx.textAlign = "center"; ctx.fillText("★", 0, -70 * s); }
+    else if (chest === "hood") {
       ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(0, -146 * s, 46 * s, 16 * s, 0, 0, 7); ctx.fill();
       ctx.strokeStyle = "#f4f1e8"; ctx.lineWidth = 3 * s; [-14, 14].forEach(dx => { ctx.beginPath(); ctx.moveTo(dx * s, -138 * s); ctx.lineTo(dx * s, -100 * s); ctx.stroke(); });
       ctx.strokeStyle = line; ctx.lineWidth = 3 * s; rr(ctx, -40 * s, -60 * s, 80 * s, 34 * s, 10 * s); ctx.stroke(); ctx.lineWidth = 4 * s;
-    } else if (L.chest === "kurti") {
+    } else if (chest === "kurti") {
       ctx.strokeStyle = "#f2c14e"; ctx.lineWidth = 5 * s; ctx.beginPath(); ctx.moveTo(-24 * s, -148 * s); ctx.lineTo(0, -108 * s); ctx.lineTo(24 * s, -148 * s); ctx.stroke();
       ctx.fillStyle = "#f2c14e"; for (let k = -3; k <= 3; k++) { ctx.beginPath(); ctx.arc(k * 20 * s, -24 * s, 3.5 * s, 0, 7); ctx.fill(); }
       ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
@@ -794,6 +844,16 @@ const Video = (() => {
       ctx.fillStyle = L.hc; ctx.beginPath(); ctx.moveTo(-68 * s, 4 * s);
       ctx.quadraticCurveTo(-72 * s, -84 * s, 0, -80 * s); ctx.quadraticCurveTo(72 * s, -84 * s, 68 * s, 4 * s);
       ctx.quadraticCurveTo(56 * s, -40 * s, 4 * s, -50 * s); ctx.lineTo(-4 * s, -50 * s); ctx.quadraticCurveTo(-56 * s, -40 * s, -68 * s, 4 * s); ctx.fill();
+    }
+    if (DR && DR.hat === "police") {
+      ctx.fillStyle = "#c9ad72"; ctx.beginPath(); ctx.moveTo(-70 * s, -40 * s); ctx.lineTo(-62 * s, -92 * s); ctx.quadraticCurveTo(0, -118 * s, 62 * s, -92 * s); ctx.lineTo(70 * s, -40 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#3b2a14"; ctx.fillRect(-70 * s, -54 * s, 140 * s, 16 * s);
+      ctx.fillStyle = "#1d1d22"; ctx.beginPath(); ctx.ellipse(face * 30 * s, -38 * s, 62 * s, 12 * s, 0, 0, Math.PI); ctx.fill();
+      ctx.fillStyle = "#e9c46a"; ctx.beginPath(); ctx.arc(0, -76 * s, 10 * s, 0, 7); ctx.fill();
+    } else if (DR && DR.hat === "safa") {
+      ctx.fillStyle = "#f77f00"; ctx.beginPath(); ctx.moveTo(-70 * s, -10 * s); ctx.quadraticCurveTo(-78 * s, -110 * s, 0, -104 * s); ctx.quadraticCurveTo(78 * s, -110 * s, 70 * s, -10 * s); ctx.quadraticCurveTo(0, -48 * s, -70 * s, -10 * s); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = "rgba(0,0,0,.15)"; ctx.lineWidth = 4 * s; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(-66 * s, (-30 - k * 22) * s); ctx.quadraticCurveTo(0, (-70 - k * 18) * s, 66 * s, (-40 - k * 18) * s); ctx.stroke(); }
+      ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
     }
     // eyes (look at the other character)
     const ex = face * 5 * s - (P.eyesUp ? 0 : 0), eyY = P.eyesUp ? -5 * s : 0;
@@ -853,10 +913,78 @@ const Video = (() => {
     ctx.restore();
   }
   // a different place for each kind of topic, so videos don't all look the same
-  function cartoonScene(ctx, w, h, tsec) {
-    const sc = Math.min(w, h) / 720, v = w < h, cat = CAT(), fy = h * (v ? 0.86 : 0.8);
+  function cartoonScene(ctx, w, h, tsec, sid) {
+    const sc = Math.min(w, h) / 720, v = w < h, fy = h * (v ? 0.86 : 0.8); let cat = sid || CAT();
     const grad = (a, b) => { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, a); g.addColorStop(1, b); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); };
     const rnd = k => { const x = Math.sin(k * 127.1) * 43758.5453; return x - Math.floor(x); };
+    const T = (hi, en) => (GL() ? en : hi);
+    const sign = (x0, y0, ww, hh, bgc, fg, text) => { ctx.fillStyle = bgc; ctx.fillRect(x0, y0, ww, hh); ctx.fillStyle = fg; ctx.font = `bold ${hh * 0.5}px 'Noto Sans Devanagari',sans-serif`; ctx.textAlign = "center"; ctx.fillText(text, x0 + ww / 2, y0 + hh * 0.68, ww * 0.92); };
+    const R = (x0, y0, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(x0, y0, ww, hh); };
+    if (cat === "thana") {
+      grad("#e8eef4", "#d6e0ea"); R(0, fy - h * 0.28, w, h * 0.28, "#4a6fa5"); R(0, fy - h * 0.285, w, 6 * sc, "#2e4a75");
+      sign(w * 0.3, 140 * sc, w * 0.4, 70 * sc, "#1d3557", "#fff", T("पुलिस थाना", "POLICE STATION"));
+      R(w * 0.07, h * 0.22, 170 * sc, 130 * sc, "#b08968"); [[0, 0, "#fff"], [60, 10, "#ffe8a3"], [20, 60, "#fff"], [100, 55, "#cde7ff"]].forEach(([dx, dy, c]) => R(w * 0.07 + (14 + dx) * sc, h * 0.22 + (12 + dy) * sc, 50 * sc, 56 * sc, c));
+      if (!v) { R(w * 0.78, h * 0.2, 150 * sc, 110 * sc, "#9fd3f0"); ctx.strokeStyle = "#555"; ctx.lineWidth = 6 * sc; for (let k = 1; k < 6; k++) { ctx.beginPath(); ctx.moveTo(w * 0.78 + k * 25 * sc, h * 0.2); ctx.lineTo(w * 0.78 + k * 25 * sc, h * 0.2 + 110 * sc); ctx.stroke(); } }
+      R(w * 0.32, fy - 60 * sc, w * 0.36, 18 * sc, "#8d6e4c"); R(w * 0.34, fy - 42 * sc, 12 * sc, 42 * sc, "#6b4f33"); R(w * 0.64, fy - 42 * sc, 12 * sc, 42 * sc, "#6b4f33");
+      R(0, fy, w, h - fy, "#9aa3ad"); ctx.strokeStyle = "rgba(0,0,0,.08)"; for (let x0 = 0; x0 < w; x0 += 80 * sc) { ctx.beginPath(); ctx.moveTo(x0, fy); ctx.lineTo(x0 - 40 * sc, h); ctx.stroke(); }
+      return fy;
+    }
+    if (cat === "court") {
+      grad("#7a4b26", "#5c3618"); ctx.fillStyle = "rgba(0,0,0,.12)"; for (let x0 = 0; x0 < w; x0 += 60 * sc) ctx.fillRect(x0, 0, 4 * sc, fy);
+      R(w * 0.25, fy - h * 0.3, w * 0.5, h * 0.3, "#3e2410"); R(w * 0.25, fy - h * 0.3, w * 0.5, 14 * sc, "#a0703c");
+      ctx.font = `${70 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText("⚖️", w / 2, fy - h * 0.12);
+      sign(w * 0.32, 140 * sc, w * 0.36, 64 * sc, "#2b1608", "#f2c14e", T("न्यायालय", "COURT"));
+      [0.12, 0.88].forEach(f => { R(w * f - 30 * sc, 0, 60 * sc, fy, "#8e1b1b"); ctx.fillStyle = "rgba(0,0,0,.18)"; for (let k = 0; k < 4; k++) ctx.fillRect(w * f - 30 * sc + k * 15 * sc, 0, 4 * sc, fy); });
+      R(0, fy, w, h - fy, "#6d1a1a"); return fy;
+    }
+    if (cat === "bazaar") {
+      grad("#ffd9a0", "#fff1d6");
+      const cols = [["#d62828", "#fff"], ["#2a9d8f", "#fff"], ["#f4a261", "#fff"], ["#6a4c93", "#fff"]];
+      for (let i = 0, x0 = -20 * sc; x0 < w; i++, x0 += 230 * sc) {
+        const [a, b] = cols[i % 4], top = fy - (v ? 330 : 300) * sc;
+        R(x0 + 10 * sc, top + 50 * sc, 200 * sc, (v ? 280 : 250) * sc, "rgba(120,80,40,.25)");
+        for (let k = 0; k < 8; k++) R(x0 + k * 27 * sc, top, 27 * sc, 50 * sc, k % 2 ? b : a);
+        ctx.fillStyle = a; ctx.beginPath(); for (let k = 0; k <= 8; k++) ctx.arc(x0 + k * 27 * sc + 13 * sc, top + 50 * sc, 13 * sc, 0, Math.PI); ctx.fill();
+        R(x0 + 10 * sc, fy - 90 * sc, 200 * sc, 20 * sc, "#8d6e4c");
+        const prod = ["#e63946", "#80b918", "#7b2cbf", "#ffb703"];
+        for (let k = 0; k < 12; k++) { ctx.fillStyle = prod[(i + k) % 4]; ctx.beginPath(); ctx.arc(x0 + (26 + (k % 6) * 30) * sc, fy - (100 + Math.floor(k / 6) * 18) * sc, 13 * sc, 0, 7); ctx.fill(); }
+      }
+      R(0, fy, w, h - fy, "#c9a27e"); return fy;
+    }
+    if (cat === "ghar") {
+      grad("#ffe5d4", "#ffd3b8");
+      if (!v) { R(w * 0.72, h * 0.14, 190 * sc, 150 * sc, "#bde0fe"); R(w * 0.72 - 20 * sc, h * 0.12, 50 * sc, 190 * sc, "#e76f51"); R(w * 0.72 + 160 * sc, h * 0.12, 50 * sc, 190 * sc, "#e76f51"); }
+      R(w * 0.1, h * 0.16, 110 * sc, 80 * sc, "#8d6e4c"); R(w * 0.1 + 8 * sc, h * 0.16 + 8 * sc, 94 * sc, 64 * sc, "#a8dadc");
+      ctx.fillStyle = "#6d597a"; ctx.beginPath(); ctx.roundRect(w * 0.3, fy - 120 * sc, w * 0.4, 100 * sc, 30 * sc); ctx.fill(); ctx.fillStyle = "#b56576"; ctx.beginPath(); ctx.roundRect(w * 0.32, fy - 150 * sc, w * 0.36, 60 * sc, 24 * sc); ctx.fill();
+      R(0, fy, w, h - fy, "#b5835a"); ctx.fillStyle = "rgba(0,0,0,.08)"; for (let x0 = 0; x0 < w; x0 += 70 * sc) ctx.fillRect(x0, fy, 3 * sc, h - fy); return fy;
+    }
+    if (cat === "gaon") {
+      grad("#8ecae6", "#e0f4ff"); ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(w * 0.82, h * (v ? 0.4 : 0.18), 50 * sc, 0, 7); ctx.fill();
+      R(0, fy - h * 0.16, w, h * 0.16, "#90be6d"); ctx.fillStyle = "#6a994e"; for (let k = 0; k < 6; k++) ctx.fillRect(0, fy - h * 0.16 + k * h * 0.027, w, 4 * sc);
+      [[0.12, 1], [0.7, 0.85]].forEach(([f, z]) => { const hx = w * f, hw = 170 * sc * z, hh = 110 * sc * z, by = fy - h * 0.1; R(hx, by - hh, hw, hh, "#c08552"); R(hx + hw * 0.4, by - hh * 0.6, hw * 0.2, hh * 0.6, "#5c3a1a"); ctx.fillStyle = "#d4a373"; ctx.beginPath(); ctx.moveTo(hx - 20 * sc * z, by - hh); ctx.lineTo(hx + hw / 2, by - hh - 80 * sc * z); ctx.lineTo(hx + hw + 20 * sc * z, by - hh); ctx.fill(); });
+      R(w * 0.45, fy - h * 0.38, 26 * sc, h * 0.28, "#7f5539"); ctx.fillStyle = "#2d6a4f"; [[0, -60], [-50, -30], [50, -30], [0, -10]].forEach(([dx, dy]) => { ctx.beginPath(); ctx.arc(w * 0.45 + 13 * sc + dx * sc, fy - h * 0.38 + dy * sc, 60 * sc, 0, 7); ctx.fill(); });
+      R(0, fy, w, h - fy, "#b08968"); return fy;
+    }
+    if (cat === "sadak") {
+      grad("#a2d2ff", "#eaf4ff");
+      for (let i = 0, x0 = 0; x0 < w; i++) { const bw = (90 + rnd(i) * 90) * sc, bh = (150 + rnd(i + 5) * 220) * sc; R(x0, fy - h * 0.12 - bh, bw - 8 * sc, bh, ["#cdb4db", "#ffc8dd", "#bde0fe", "#e9edc9"][i % 4]); ctx.fillStyle = "rgba(255,255,255,.6)"; for (let yy = fy - h * 0.12 - bh + 14 * sc; yy < fy - h * 0.12 - 20 * sc; yy += 34 * sc) for (let xx = x0 + 12 * sc; xx < x0 + bw - 24 * sc; xx += 26 * sc) ctx.fillRect(xx, yy, 14 * sc, 18 * sc); x0 += bw; }
+      R(0, fy - h * 0.12, w, h * 0.12, "#6c757d"); ctx.fillStyle = "#fff"; for (let x0 = 0; x0 < w; x0 += 120 * sc) ctx.fillRect(x0, fy - h * 0.065, 60 * sc, 8 * sc);
+      R(w * 0.78, fy - h * 0.2, 16 * sc, h * 0.2, "#444"); for (let k = 0; k < 7; k++) R(w * 0.78 - k * 40 * sc - 40 * sc, fy - h * 0.18, 40 * sc, 12 * sc, k % 2 ? "#fff" : "#d62828");
+      R(0, fy, w, h - fy, "#adb5bd"); return fy;
+    }
+    if (cat === "office") {
+      grad("#eef1f5", "#dde3ea"); if (!v) { R(w * 0.7, h * 0.12, 200 * sc, 150 * sc, "#cfe8ff"); ctx.fillStyle = "rgba(0,0,0,.12)"; for (let k = 0; k < 9; k++) ctx.fillRect(w * 0.7, h * 0.12 + k * 17 * sc, 200 * sc, 5 * sc); }
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(w * 0.16, h * 0.2, 40 * sc, 0, 7); ctx.fill(); ctx.strokeStyle = "#333"; ctx.lineWidth = 4 * sc; ctx.stroke(); ctx.beginPath(); ctx.moveTo(w * 0.16, h * 0.2); ctx.lineTo(w * 0.16, h * 0.2 - 26 * sc); ctx.moveTo(w * 0.16, h * 0.2); ctx.lineTo(w * 0.16 + 18 * sc, h * 0.2); ctx.stroke();
+      R(w * 0.3, fy - 110 * sc, w * 0.4, 22 * sc, "#8d6e4c"); R(w * 0.45, fy - 200 * sc, 110 * sc, 80 * sc, "#222"); R(w * 0.45 + 6 * sc, fy - 194 * sc, 98 * sc, 64 * sc, "#4cc9f0");
+      R(0, fy, w, h - fy, "#8d99ae"); return fy;
+    }
+    if (cat === "hospital") {
+      grad("#e9f7f3", "#d3efe7"); sign(w * 0.33, 140 * sc, w * 0.34, 64 * sc, "#fff", "#2a9d8f", T("अस्पताल", "HOSPITAL"));
+      ctx.fillStyle = "#2a9d8f"; ctx.fillRect(w * 0.1, h * 0.2, 24 * sc, 70 * sc); ctx.fillRect(w * 0.1 - 23 * sc, h * 0.2 + 23 * sc, 70 * sc, 24 * sc);
+      R(w * 0.35, fy - 90 * sc, w * 0.3, 40 * sc, "#fff"); R(w * 0.35, fy - 50 * sc, 10 * sc, 50 * sc, "#adb5bd"); R(w * 0.65 - 10 * sc, fy - 50 * sc, 10 * sc, 50 * sc, "#adb5bd"); R(w * 0.35, fy - 110 * sc, 70 * sc, 26 * sc, "#cde7ff");
+      R(0, fy, w, h - fy, "#b7c4c0"); return fy;
+    }
+    if (cat === "school") cat = "hindi";
     if (cat === "india") {
       grad("#ff9f68", "#ffe2b8");
       ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(w * (v ? 0.78 : 0.86), h * (v ? 0.48 : 0.2), 55 * sc, 0, 7); ctx.fill();
@@ -1036,16 +1164,19 @@ const Video = (() => {
 
   // the drawn room/space/street stays the same during a video → draw it once and reuse (smoother video)
   let sceneC = null, sceneK = "";
-  function sceneCache(w, h) {
-    const k = CAT() + "|" + w + "|" + h + "|" + (GL() ? "g" : "in");
-    if (sceneK !== k) { sceneC = document.createElement("canvas"); sceneC.width = w; sceneC.height = h; cartoonScene(sceneC.getContext("2d"), w, h, 0); sceneK = k; }
-    return sceneC;
+  const sceneMap = new Map();
+  function sceneCache(w, h, sid) {
+    const k = (sid || CAT()) + "|" + w + "|" + h + "|" + (GL() ? "g" : "in");
+    if (!sceneMap.has(k)) { if (sceneMap.size > 12) sceneMap.clear(); const c = document.createElement("canvas"); c.width = w; c.height = h; cartoonScene(c.getContext("2d"), w, h, 0, sid); sceneMap.set(k, c); }
+    return sceneMap.get(k);
   }
+  const sceneAt = idx => { if (!plan || !plan.slides) return ""; for (let i = Math.min(idx, plan.slides.length - 1); i >= 0; i--) if (plan.slides[i].scene != null) return plan.slides[i].scene; return ""; };
   function cartoonFrame(ctx, w, h, kind, s, prog, idx, total, channel, tsec, mouth) {
     const sc = Math.min(w, h) / 720, F = "'Noto Sans Devanagari','Noto Sans',sans-serif", v = w < h;
     const ph = photoAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
-    if (ph) photoBg(ctx, w, h, ph, tsec, idx); else ctx.drawImage(sceneCache(w, h), 0, 0);
-    const board = ph ? label : boardBig;
+    const sid = sceneAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
+    if (ph) photoBg(ctx, w, h, ph, tsec, idx); else ctx.drawImage(sceneCache(w, h, sid), 0, 0);
+    const board = ph || LABEL_SCENES.has(sid) ? label : boardBig;
     const names = (plan && plan.names) || (GL() ? { A: "Leo", B: "Priya" } : { A: "Pappu", B: "Chacha" });
     const who = kind === "slide" ? s.who : null;
     if (kind === "slide") board(ctx, w, h, s.heading, s.emoji, sc, F);
@@ -1063,11 +1194,16 @@ const Video = (() => {
       return end ? "happy" : "";
     };
     const eA = emoOf("A"), eB = emoOf("B");
+    const dressOf = k => ((plan && plan.cast) || {})[k] || "";
     const gOf = (k, f) => {
-      if (kind === "end") return poseOf("wave", f, tsec, prog, 0);
-      if (kind === "title") return poseOf(k === "A" ? "wave" : "hip", f, tsec, prog, 0);
-      const sp = who === k, g = gestureFor(s, idx, sp, prog), P = poseOf(g, f, tsec, prog, sp ? mouth : 0);
-      if (sp && NEG.test(s.narration || "") && prog < 0.45) P.shake = 1; // "nahi" → head shake
+      let P;
+      if (kind === "end") P = poseOf("wave", f, tsec, prog, 0);
+      else if (kind === "title") P = poseOf(k === "A" ? "wave" : "hip", f, tsec, prog, 0);
+      else {
+        const sp = who === k, g = gestureFor(s, idx, sp, prog); P = poseOf(g, f, tsec, prog, sp ? mouth : 0);
+        if (sp && NEG.test(s.narration || "") && prog < 0.45) P.shake = 1; // "nahi" → head shake
+      }
+      P.dress = dressOf(k);
       return P;
     };
     drawChar(ctx, ax, cy, cs, "A", who === "A" ? mouth : 0, bl(0), who === "A" || (end && Math.sin(tsec * 6) > 0), tsec, 1, eA, gOf("A", 1));
@@ -1117,8 +1253,9 @@ const Video = (() => {
     const c = document.createElement("canvas"); c.width = 1280; c.height = 720;
     const x = c.getContext("2d");
     if (plan.style === "cartoon") {
-      const ph = photoAt(0); if (ph) photoBg(x, 1280, 720, ph, 0, 0); else cartoonScene(x, 1280, 720, 0);
-      drawChar(x, 190, 740, 1.35, "A", 0.7, false, true, 0.3, 1); drawChar(x, 1090, 740, 1.35, "B", 0, false, false, 0, -1);
+      const ph = photoAt(0); if (ph) photoBg(x, 1280, 720, ph, 0, 0); else cartoonScene(x, 1280, 720, 0, sceneAt(0));
+      const tp = (k, g, f) => Object.assign(poseOf(g, f, 0.3, 0.5, 0), { dress: (plan.cast || {})[k] || "" });
+      drawChar(x, 190, 740, 1.35, "A", 0.7, false, true, 0.3, 1, "", tp("A", "explain", 1)); drawChar(x, 1090, 740, 1.35, "B", 0, false, false, 0, -1, "", tp("B", "hip", -1));
       x.fillStyle = "rgba(0,0,0,.55)"; x.fillRect(330, 150, 620, 400);
       x.fillStyle = "#ffd166"; x.textAlign = "center"; x.font = "bold 78px 'Noto Sans Devanagari',sans-serif";
       wrap(x, plan.thumbnail_text || plan.title || "", 640, 270, 580, 92, 4);
