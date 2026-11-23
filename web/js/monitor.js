@@ -8,6 +8,10 @@ const Monitor = (() => {
   let last = null;
 
   const enabled = () => !!S.get("owner", false);
+  // Owner asked (23 Nov 2026) to keep Sahayak fully separate from the NSE trading app:
+  // no calls to it at all unless he switches the link back on in Settings.
+  if (!S.get("tradeSplitDone", false)) { S.set("tradeLink", false); S.del("tradeToken"); S.set("tradeSplitDone", true); }
+  const linked = () => !!S.get("tradeLink", false) && !!S.get("tradeToken", "");
 
   async function get(url, opts) {
     opts = opts || {};
@@ -26,6 +30,7 @@ const Monitor = (() => {
   }
 
   async function trading() {
+    if (!linked()) return { state: "OFF", text: "NSE app se alag hai — Sahayak use bilkul nahi chhoota" };
     if (!IS_APP) return { state: "LAPTOP", text: "Trading app sirf phone pe dekh sakte ho" };
     const tok = S.get("tradeToken", "");
     if (!tok) return { state: "NO_TOKEN", text: "Token nahi laga — ⚙️ Settings > 🩺 Monitor" };
@@ -70,8 +75,8 @@ const Monitor = (() => {
     return last;
   }
 
-  const ICON = { ALL_OK: "✅", FIXING: "🔧", STUCK: "❌", PROBLEM: "⚠️", DOWN: "⛔", NO_TOKEN: "🔑", LAPTOP: "💻", UNKNOWN: "❔" };
-  const WORD = { ALL_OK: "Sab theek", FIXING: "Kaam-Doctor theek kar raha hai", STUCK: "Atka hua — dhyaan do", PROBLEM: "Gadbad", DOWN: "Band", NO_TOKEN: "Juda nahi", LAPTOP: "Phone pe dekho", UNKNOWN: "Pata nahi" };
+  const ICON = { OFF: "🔌", ALL_OK: "✅", FIXING: "🔧", STUCK: "❌", PROBLEM: "⚠️", DOWN: "⛔", NO_TOKEN: "🔑", LAPTOP: "💻", UNKNOWN: "❔" };
+  const WORD = { OFF: "Alag kiya hua", ALL_OK: "Sab theek", FIXING: "Kaam-Doctor theek kar raha hai", STUCK: "Atka hua — dhyaan do", PROBLEM: "Gadbad", DOWN: "Band", NO_TOKEN: "Juda nahi", LAPTOP: "Phone pe dekho", UNKNOWN: "Pata nahi" };
   const ago = s => { if (!s) return "-"; const m = Math.round((Date.now() - new Date(s)) / 60000); return m < 60 ? m + " min pehle" : m < 2880 ? Math.round(m / 60) + " ghante pehle" : Math.round(m / 1440) + " din pehle"; };
 
   function draw() {
@@ -126,9 +131,9 @@ const Monitor = (() => {
   // short line for the chat home screen
   function bannerText() {
     const m = S.get("monitorLast", null);
-    if (!enabled() || !m || (m.t === "ALL_OK" || m.t === "LAPTOP") && m.c === "ALL_OK") return "";
+    if (!enabled() || !m || (m.t === "ALL_OK" || m.t === "LAPTOP" || m.t === "OFF") && m.c === "ALL_OK") return "";
     return "🩺 Apps mein dhyaan chahiye: trading " + (ICON[m.t] || "") + " · court " + (ICON[m.c] || "");
   }
 
-  return { render, check, enabled, bannerText };
+  return { render, check, enabled, linked, bannerText };
 })();

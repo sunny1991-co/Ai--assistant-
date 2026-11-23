@@ -60,12 +60,13 @@ const Settings = (() => {
       </div>` : ""}
 
       <div class="card"><h3>🩺 Monitor (sirf owner ke liye)</h3>
-        <label class="row"><input type="checkbox" id="own" ${S.get("owner", false) ? "checked" : ""}> Trading + Court app ki monitoring dikhao</label>
-        ${IS_APP ? `<ol class="small">
+        <label class="row"><input type="checkbox" id="own" ${S.get("owner", false) ? "checked" : ""}> Court app ki monitoring dikhao</label>
+        ${IS_APP ? `<label class="row"><input type="checkbox" id="tlink" ${S.get("tradeLink", false) ? "checked" : ""}> 📈 NSE trading app se jodo <span class="muted small">(band = dono app bilkul alag)</span></label>
+        <div id="tlinkbox" ${S.get("tradeLink", false) ? "" : "hidden"}><ol class="small">
           <li>Termux mein trading app wale folder mein chalao: <code>python nse_sahayak_link.py --enable</code></li>
           <li>Jo lamba token dikhe, copy karke yahan paste karo.</li></ol>
         <label class="field">Trading link token<input id="ttok" type="password" autocomplete="off" placeholder="${S.get("tradeToken", "") ? "✅ laga hua hai (badalna ho to naya paste karo)" : "Token paste karo"}"></label>
-        <button class="btn" id="tsave">💾 Token save</button>` : '<p class="muted small">Laptop pe sirf Court app dikhega. Trading app phone pe hi dikhega.</p>'}
+        <button class="btn" id="tsave">💾 Token save</button></div>` : '<p class="muted small">Laptop pe sirf Court app dikhega. Trading app phone pe hi dikhega.</p>'}
       </div>
 
       <div class="card"><h3>💾 Backup</h3>
@@ -119,6 +120,8 @@ const Settings = (() => {
     if (lk) lk.onchange = () => { const ok = window.Native.setLock(lk.checked); if (!ok) { lk.checked = false; toast("Phone mein fingerprint ya screen lock set nahi hai"); } else toast(lk.checked ? "🔒 Lock chalu" : "Lock band"); };
 
     $("#own").onchange = e => { S.set("owner", e.target.checked); App.ownerNav(); toast(e.target.checked ? "🩺 Monitor neeche menu mein aa gaya" : "Monitor band"); };
+    const tl = $("#tlink");
+    if (tl) tl.onchange = () => { S.set("tradeLink", tl.checked); if (!tl.checked) S.del("tradeToken"); $("#tlinkbox").hidden = !tl.checked; toast(tl.checked ? "Token daal kar save karo" : "🔌 NSE app se alag — Sahayak ab use bilkul nahi chhuega"); };
     const ts = $("#tsave");
     if (ts) ts.onclick = () => { const v = $("#ttok").value.replace(/\s/g, ""); if (v.length < 32) { toast("Token poora paste karo"); return; } S.set("tradeToken", v); S.set("owner", true); App.ownerNav(); toast("✅ Token save — 🩺 Monitor kholo"); render(); };
 
