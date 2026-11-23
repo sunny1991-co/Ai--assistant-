@@ -3,6 +3,7 @@
 "use strict";
 const Video = (() => {
   let plan = null, busy = false;
+  const EN = () => (plan && plan.lang ? plan.lang : S.get("vLang", "hi")) === "en";
   const voices = {}; // slide index -> {blob, dur} (owner's own recorded voice)
   const photos = {}; // slide index -> HTMLImageElement (owner's own photo)
   const AI_VOICES = [["Charon", "👨 Aadmi — gambhir"], ["Puck", "👨 Aadmi — josh wala"], ["Orus", "👨 Aadmi — shaant"], ["Kore", "👩 Aurat — saaf"], ["Aoede", "👩 Aurat — garm"], ["Leda", "👩 Aurat — halki"]];
@@ -20,14 +21,14 @@ const Video = (() => {
   // 🤖 Human-like AI voice (Gemini TTS, free tier). Returns an ArrayBuffer (WAV) or throws.
   const ttsCache = new Map();
   async function aiVoice(text, voice) {
-    const ck = voice + "|" + text;
+    const ck = (EN() ? "en|" : "hi|") + voice + "|" + text;
     if (ttsCache.has(ck)) return ttsCache.get(ck).slice(0);
     const buf = await aiVoiceRaw(text, voice);
     ttsCache.set(ck, buf.slice(0));
     return buf;
   }
   async function aiVoiceRaw(text, voice) {
-    const body = { contents: [{ role: "user", parts: [{ text: "Aise bolo jaise ek samajhdaar Bharatiya bada bhai apne dost ko chai pe samjha raha ho — aaram se, garmjoshi se, sawaal pe awaaz upar, zaroori baat pe zor, comma aur full stop pe halka ruk kar. News reader ya robot jaisa nahi. Ye Hindi bolo:\n" + text }] }],
+    const body = { contents: [{ role: "user", parts: [{ text: (EN() ? "Speak like a warm, friendly storyteller explaining to a friend — natural and conversational, clear neutral English, with natural pauses at commas and full stops, curious tone on questions. Not like a robot or a news reader. Say this:\n" : "Aise bolo jaise ek samajhdaar Bharatiya bada bhai apne dost ko chai pe samjha raha ho — aaram se, garmjoshi se, sawaal pe awaaz upar, zaroori baat pe zor, comma aur full stop pe halka ruk kar. News reader ya robot jaisa nahi. Ye Hindi bolo:\n") + text }] }],
       generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } };
     const ok = S.get("ttsModel", "");
     const order = ok ? [ok, ...TTS_MODELS.filter(m => m !== ok)] : TTS_MODELS;
@@ -106,6 +107,12 @@ const Video = (() => {
     "Accident claim (MACT) kaise milta hai?", "Kya police phone check kar sakti hai?",
   ];
 
+  const IDEAS_EN = [
+    "5 signs a message is a scam", "How online scammers trick smart people", "What to do in the first hour after a cyber fraud",
+    "How to spot a fake job offer", "Investment scam red flags everyone should know", "Strange laws in India you won't believe",
+    "How India's court system works in 5 minutes", "Why court cases in India take so long", "Famous Indian Supreme Court cases, simply explained",
+    "What happens after an arrest in India?", "Is your phone listening to you? Privacy basics", "Identity theft: first steps to protect yourself",
+  ];
   function render() {
     $("#view").innerHTML = `<div class="wrap"><h2 style="margin:6px 0">🎬 Video banao</h2>
       ${(() => { const mk = S.get("vMaking", null); if (!mk) return ""; S.del("vMaking"); S.set("vLow", true);
@@ -113,21 +120,25 @@ const Video = (() => {
       <div class="banner">✅ Sirf apna original content (doosron ki video/gaana mat daalna). ⚖️ Peedit ka naam kabhi nahi, judge pe ilzaam nahi, parties "A aur B". Upload se pehle script ek baar khud padh lena.</div>
       <div class="card">
         <label class="field">❓ Logon ka sawaal<input id="vq" placeholder="Jaise: Kya police bina warrant giraftar kar sakti hai?"></label>
-        <div class="toggles" style="flex-wrap:wrap">${IDEAS.map(q => `<button class="tg" data-idea="${esc(q)}">${esc(q)}</button>`).join("")}</div>
+        <div class="toggles" style="flex-wrap:wrap">${(EN() ? IDEAS_EN : IDEAS).map(q => `<button class="tg" data-idea="${esc(q)}">${esc(q)}</button>`).join("")}</div>
         <label class="field">⚖️ Judgment / tathya (optional — Court app ka saar yahan paste karo)<textarea id="vtopic" rows="4" placeholder="Jaise: Arnesh Kumar vs State of Bihar (2014) — 7 saal se kam saza wale case mein turant giraftari nahi…"></textarea></label>
         <div class="row"><label class="field" style="flex:1">Lambai<select id="vlen">${Object.entries(LENGTHS).map(([k, v]) => `<option value="${k}" ${k === "mid" ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
         <label class="field" style="flex:1">Channel ka naam<input id="vch" value="${esc(S.get("vChannel", ""))}" placeholder="Jaise: Kanoon Aasaan"></label></div>
-        <div class="row"><label class="field" style="flex:1">Andaaz<select id="vstyle">
+        <div class="row"><label class="field" style="flex:1">🌍 Kiske liye<select id="vlang">
+          <option value="hi" ${!EN() ? "selected" : ""}>🇮🇳 Hindi — Bharat ke log</option>
+          <option value="en" ${EN() ? "selected" : ""}>🌍 English — videshi log</option></select></label>
+          <label class="field" style="flex:1">Andaaz<select id="vstyle">
           <option value="cartoon" ${S.get("vStyle", "cartoon") === "cartoon" ? "selected" : ""}>🧑‍🤝‍🧑 Do cartoon aapas mein baat karein</option>
           <option value="slides" ${S.get("vStyle", "cartoon") === "slides" ? "selected" : ""}>🖼️ Slides + ek awaaz</option></select></label></div>
-        <div class="row" id="vnames"><label class="field" style="flex:1">🙋 Sawaal puchne wala<input id="vna" value="${esc(S.get("vNameA", "Pappu"))}"></label>
-          <label class="field" style="flex:1">👴 Samjhane wale<input id="vnb" value="${esc(S.get("vNameB", "Chacha"))}"></label></div>
+        <div class="row" id="vnames"><label class="field" style="flex:1">🙋 Sawaal puchne wala<input id="vna" value="${esc(S.get(EN() ? "vNameAen" : "vNameA", EN() ? "Sam" : "Pappu"))}"></label>
+          <label class="field" style="flex:1">👴 Samjhane wale<input id="vnb" value="${esc(S.get(EN() ? "vNameBen" : "vNameB", EN() ? "Uncle Raj" : "Chacha"))}"></label></div>
         <button class="btn primary wide" id="vplan">✍️ Script banao</button>
         <div id="vmsg" class="small" style="margin-top:6px"></div>
       </div>
       <div id="vedit"></div></div>`;
     $("#vplan").onclick = makePlan;
     const sn = () => { $("#vnames").hidden = $("#vstyle").value !== "cartoon"; };
+    $("#vlang").onchange = () => { S.set("vLang", $("#vlang").value); plan = null; render(); };
     $("#vstyle").onchange = () => { S.set("vStyle", $("#vstyle").value); sn(); }; sn();
     $$("[data-idea]").forEach(b => b.onclick = () => { $("#vq").value = b.dataset.idea; });
     if (plan) drawEditor();
@@ -140,7 +151,9 @@ const Video = (() => {
     S.set("vChannel", $("#vch").value.trim());
     const len = $("#vlen").value, n = LENGTHS[len][1], style = $("#vstyle").value;
     const nA = ($("#vna").value.trim() || "Pappu").slice(0, 20), nB = ($("#vnb").value.trim() || "Chacha").slice(0, 20);
-    S.set("vNameA", nA); S.set("vNameB", nB);
+    const en = $("#vlang").value === "en";
+    S.set(en ? "vNameAen" : "vNameA", nA); S.set(en ? "vNameBen" : "vNameB", nB);
+    const LANG = en ? `\n\nBHASHA (sabse zaroori): title, description, tags, thumbnail_text aur har line/narration/key/heading/points — SAB saral, natural English mein likho, videshi (US/UK/duniya ke) darshakon ke liye. Devanagari ya Hindi bilkul nahi. Indian shabd (FIR, thana, lakh) aaye to ek line mein samjhao. Disclaimer bhi English mein: "this is for education only, not legal advice — rules differ by country, talk to a qualified lawyer". Description ke aakhir mein: "⚠️ For education only. Not legal advice. No outcome is guaranteed." Kisi aur desh ka kanoon pakka pata na ho to uska daawa mat karo — kaho "rules differ by country". Comment wali line: "Has this happened to you? Tell us in the comments."` : "";
     const RULES = `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
       `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi; "pakka milega"/"case jeet jaoge" jaisi koi guarantee nahi.`;
     const HEAD = `"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)"`;
@@ -152,13 +165,13 @@ const Video = (() => {
       `Mazaak halka aur saaf ho — peedit, jaati, dharm, aurat/aadmi ya kisi samuday pe mazaak nahi. Kitaabi ya ratti hui bhasha nahi. ` + RULES;
     $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script ban rahi hai…';
     try {
-      const r = await G.ask([{ role: "user", parts: [{ text: style === "cartoon" ? CARTOON :
+      const r = await G.ask([{ role: "user", parts: [{ text: (style === "cartoon" ? CARTOON :
         `YouTube video banana hai (Hindi, aam logon ke liye, aasaan bhasha). Vishay:\n${topic}\n\n` +
         `Sirf JSON do, aur kuch nahi:\n{"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)",` +
         `"slides":[{"emoji":"(1 emoji jo slide ko dikhaye)","heading":"(chhota, Hindi)","points":["(3 keyword, har ek 2-5 shabd)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
         `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche) aur uski narration ke ant mein ek chhoti line: "ye video sirf jaankari ke liye hai", 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, sirf jaankari hai — kisi nateeje ki guarantee nahi; apne case ke liye vakil se milein' + 'achhi lagi to like aur subscribe'. LEHJA (sabse zaroori — video AI jaisi nahi lagni chahiye): narration aise likho jaise ek insaan camera ke saamne dost se baat kar raha ho — "dekhiye", "ab socho", "yahan dhyaan dena" jaise shabd, chhote vakya, aap/aapke se baat, ek-do sawaal darshak se. Pehli slide ki pehli line 3 second mein dhyaan khinche (ek aam zindagi ki situation: "maan lijiye raat ko police aapke ghar aati hai…" — kisi asli vyakti ka naam nahi). Rataa-rataaya ya kitaabi bhasha nahi, "is video mein hum jaanenge" jaisi ghisi-piti line nahi. Screen ke points narration ko dohraayein nahi — sirf 2-5 shabd ke keyword. Aakhri slide mein darshak se ek sawaal: "aapke saath aisa hua hai? comment mein batao". Video mein kahin bhi "pakka paisa wapas milega" ya "case jeet jaoge" jaisi guarantee mat do. ` +
         `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
-        `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.` }] }],
+        `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.`) + LANG }] }],
         { system: "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.", web: false, onPart: () => {} });
       const t = r.text.replace(/^[\s\S]*?(\{)/, "$1").replace(/\}[^}]*$/, "}");
       plan = JSON.parse(t);
@@ -167,7 +180,7 @@ const Video = (() => {
         plan.style = "cartoon"; plan.names = { A: nA, B: nB };
       }
       if (!Array.isArray(plan.slides) || !plan.slides.length) throw new Error("script nahi mili — dobara dabao");
-      plan.short = len === "short";
+      plan.short = len === "short"; plan.lang = en ? "en" : "hi";
       Object.keys(voices).forEach(k => delete voices[k]);
       Object.keys(photos).forEach(k => delete photos[k]);
       $("#vmsg").textContent = "✅ Script taiyaar — neeche padh ke sudhaar sakte ho";
@@ -285,7 +298,7 @@ const Video = (() => {
       try { return await ac.decodeAudioData(await aiVoice(text, vv.slice(3))); }
       catch (e) { if (!IS_APP) throw e; }
     }
-    const r = await nativeCall("speakToFile", text, "hi-IN", S.get("voiceRate", 1));
+    const r = await nativeCall("speakToFile", text, EN() ? "en-US" : "hi-IN", S.get("voiceRate", 1));
     if (r.error) throw new Error(r.error);
     const bin = atob(r.b64), arr = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
     return ac.decodeAudioData(arr.buffer);
@@ -409,7 +422,7 @@ const Video = (() => {
       ctx.textAlign = "center";
       const z = 1 + 0.04 * prog; ctx.translate(w / 2, h / 2); ctx.scale(z, z); ctx.translate(-w / 2, -h / 2);
       ctx.font = `bold ${58 * sc}px ${F}`; ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 12 * sc;
-      wrap(ctx, kind === "title" ? s : "धन्यवाद 🙏", w / 2, h * 0.42, maxW, 72 * sc, 4);
+      wrap(ctx, kind === "title" ? s : (EN() ? "Thank you 🙏" : "धन्यवाद 🙏"), w / 2, h * 0.42, maxW, 72 * sc, 4);
       ctx.shadowBlur = 0; ctx.font = `${30 * sc}px ${F}`; ctx.fillStyle = "#ffd166";
       ctx.fillText(kind === "title" ? (channel || "") : "Like • Subscribe • Share — " + (channel || ""), w / 2, h * 0.78);
     } else {
@@ -439,7 +452,7 @@ const Video = (() => {
     if (channel) { ctx.textAlign = "right"; ctx.font = `${22 * sc}px ${F}`; ctx.fillStyle = dark ? "rgba(60,40,20,.75)" : "rgba(255,255,255,.6)"; ctx.fillText(channel, w - 24 * sc, 40 * sc); }
     // always on screen: education only
     ctx.textAlign = "left"; ctx.font = `bold ${18 * sc}px ${F}`;
-    const dl = "📚 सिर्फ शिक्षा/जानकारी के लिए — कानूनी सलाह नहीं";
+    const dl = EN() ? "📚 For education only — not legal advice" : "📚 सिर्फ शिक्षा/जानकारी के लिए — कानूनी सलाह नहीं";
     const dw = ctx.measureText(dl).width + 20 * sc;
     ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(14 * sc, 14 * sc, dw, 32 * sc);
     ctx.fillStyle = "#ffd166"; ctx.fillText(dl, 24 * sc, 36 * sc);
@@ -553,7 +566,7 @@ const Video = (() => {
     const names = (plan && plan.names) || { A: "Pappu", B: "Chacha" };
     const who = kind === "slide" ? s.who : null;
     if (kind === "slide") board(ctx, w, h, s.heading, s.emoji, sc, F);
-    else board(ctx, w, h, kind === "title" ? (plan && plan.title) || s : "धन्यवाद 🙏  Like • Subscribe", "", sc, F);
+    else board(ctx, w, h, kind === "title" ? (plan && plan.title) || s : (EN() ? "Thanks for watching 🙏  Like • Subscribe" : "धन्यवाद 🙏  Like • Subscribe"), "", sc, F);
     const cs = (v ? 1.15 : 1.25) * sc, ax = v ? w * 0.27 : w * 0.16, bx = v ? w * 0.73 : w * 0.84, cy = v ? h - 30 * sc : h - 10 * sc;
     const bl = k => (tsec + k) % 3.9 < 0.13;
     const end = kind === "end";
@@ -636,7 +649,7 @@ const Video = (() => {
           try { bufs.push(await ac.decodeAudioData(await aiVoice(text, vv.slice(3)))); continue; }
           catch (e) { if (!IS_APP) throw e; fallbackNote = "Kuch hisson mein AI awaaz ki free limit poori — wahan phone ki awaaz lagi" + (cartoon ? " (dono kirdaar ki ek jaisi awaaz)" : ""); }
         }
-        const r = await nativeCall("speakToFile", plan.slides[i].narration || plan.slides[i].heading || " ", "hi-IN", S.get("voiceRate", 1));
+        const r = await nativeCall("speakToFile", plan.slides[i].narration || plan.slides[i].heading || " ", EN() ? "en-US" : "hi-IN", S.get("voiceRate", 1));
         if (r.error) throw new Error(r.error);
         const bin = atob(r.b64), arr = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
         bufs.push(await ac.decodeAudioData(arr.buffer));
