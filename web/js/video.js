@@ -521,6 +521,7 @@ const Video = (() => {
         `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
         `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.`) + LANG }] }];
       if (style === "cartoon" || isK || g) reqContents[0].parts[0].text += g ? G_LIKE + KEEP_EN : KEEP_HI;
+      if (autoHint) reqContents[0].parts[0].text += autoHint;
       const SYS = g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.";
       const r = await G.ask(reqContents, { system: SYS, web: false, json: true, onPart: () => {}, onStatus: t => { $("#vmsg").textContent = t; } });
       plan = readScript(r.text);
@@ -1839,7 +1840,7 @@ const Video = (() => {
     if (!a.on) return;
     const [h, m] = a.time.split(":").map(Number), t = new Date(); t.setHours(h || 5, m || 0, 0, 0);
     if (t <= new Date()) t.setDate(t.getDate() + 1);
-    window.Native.remind("auto:global", t.getTime(), "🤖 Aaj ki video banao", "Dabao — phone charger par lagao, Sahayak aaj ka vishay chun kar Short + 3 minute video bana dega");
+    window.Native.remind("auto:global", t.getTime(), "🤖 Aaj ki video banao", "Dabao — phone charger par lagao, Sahayak aaj ka vishay chun kar Short + 6 minute video bana dega");
   }
   function uploadNudge() {
     if (!IS_APP || !window.Native.remind) return;
@@ -1853,16 +1854,16 @@ const Video = (() => {
     const el = $("#vauto"); if (!el) return;
     const a = autoCfg(), last = a.last;
     el.innerHTML = `<h3 style="margin-top:0">🤖 Aaj ki Video (apne aap)</h3>
-      <p class="muted small">Bahar ke log India ke baare mein kya search kar rahe hain → sabse achha naya vishay → Short (~35 sec) + 3 minute video. Aap sirf dekh kar upload karo.</p>
-      <button class="btn primary wide" id="aurun">▶️ Abhi banao (Short + 3 min)</button>
-      <p class="small muted">🔌 Phone charger par lagao. Screen dheemi ho jaayegi — app mat chhodo, lock mat karo. ~10-15 minute.</p>
+      <p class="muted small">Bahar ke log India ke baare mein kya search kar rahe hain → sabse achha naya vishay → Short (~35 sec) + usi vishay ki 6 minute video. Aap sirf dekh kar upload karo.</p>
+      <button class="btn primary wide" id="aurun">▶️ Abhi banao (Short + 6 min)</button>
+      <p class="small muted">🔌 Phone charger par lagao. Screen dheemi ho jaayegi — app mat chhodo, lock mat karo. ~20-25 minute.</p>
       <div class="row" style="align-items:flex-end">${IS_APP ? `<label class="field" style="flex:1">🔔 Roz yaad dilao<select id="auon"><option value="0" ${a.on ? "" : "selected"}>Band</option><option value="1" ${a.on ? "selected" : ""}>Haan</option></select></label><label class="field" style="flex:1">Kis time<input type="time" id="autime" value="${esc(a.time)}"></label>` : ""}</div>
       <p class="small">⏰ <b>Upload ka sahi time: subah 6:30 – 8:00</b> (tab America/Canada mein shaam hoti hai). Isliye video raat ko ya subah 5-6 baje banao.</p>
       <div id="aumsg" class="small"></div>
       ${last && last.results ? `<h3>✅ Pichhli: ${esc(last.topic)} <small class="muted">(${new Date(last.at).toLocaleString("en-IN")})</small></h3>
-        ${last.results.map((r, k) => `<div class="list-item small" style="display:block"><b>${r.len === "short" ? "📱 Short" : "▶️ 3 minute"}</b> — ${esc(r.title)}
+        ${last.results.map((r, k) => `<div class="list-item small" style="display:block"><b>${r.len === "short" ? "📱 Short" : "▶️ 6 minute"}</b> — ${esc(r.title)}
           <div class="row" style="margin-top:4px;flex-wrap:wrap">${IS_APP && r.uri ? `<button class="btn" data-aup="${k}">▶️ Dekho</button><button class="btn" data-aush="${k}">📤 Share</button>` : ""}<button class="btn" data-auc="${k}:title">📋 Title</button><button class="btn" data-auc="${k}:desc">📋 Description</button><button class="btn" data-auc="${k}:tags">📋 Tags</button></div></div>`).join("")}
-        <div class="banner small">Upload se pehle: ☑️ poori video ek baar dekho · ☑️ tathya sahi lage · ☑️ YouTube mein "Altered or synthetic content" = <b>Yes</b> · ☑️ Short ko khada, 3 minute wali ko seedha upload karo.</div>` : ""}`;
+        <div class="banner small">Upload se pehle: ☑️ poori video ek baar dekho · ☑️ tathya sahi lage · ☑️ YouTube mein "Altered or synthetic content" = <b>Yes</b> · ☑️ Pehle 6 minute wali upload karo, phir Short — Short mein <b>"Related video"</b> = ye 6 minute wali chuno (Short dekhne wale seedha lambi video tak aayenge).</div>` : ""}`;
     $("#aurun").onclick = () => autoRun();
     if ($("#auon")) {
       const save = () => { const c = autoCfg(); c.on = $("#auon").value === "1"; c.time = $("#autime").value || "05:30"; S.set(AUTO, c); if (c.on && window.Native.askNotify) window.Native.askNotify(); autoSchedule(); toast(c.on ? "🔔 Roz " + c.time + " baje yaad dilaunga" : "Roz ki yaad band"); };
@@ -1876,7 +1877,7 @@ const Video = (() => {
       try { await navigator.clipboard.writeText(txt); toast("📋 Copy ho gaya"); } catch (e) { if (window.Native && window.Native.share) window.Native.share(txt); }
     });
   }
-  let autoBusy = false;
+  let autoBusy = false, autoHint = "";
   async function autoRun() {
     if (autoBusy || busy) return;
     if (mode !== "g" || !$("#vauto")) { App.go("global"); await new Promise(r => setTimeout(r, 600)); }
@@ -1898,8 +1899,9 @@ const Video = (() => {
       const results = [];
       if ($("#vstyle")) $("#vstyle").value = "cartoon";
       if ($("#vfmt")) $("#vfmt").value = "auto";
-      for (const len of ["short", "mid"]) {
-        const nm = len === "short" ? "📱 Short" : "▶️ 3 minute";
+      for (const len of ["short", "long"]) {
+        const nm = len === "short" ? "📱 Short" : "▶️ 6 minute";
+        autoHint = len === "short" ? "\nThis Short is the teaser of our 6-minute video on the same topic: give the single most surprising bit, and make the LAST line invite people to watch the full video (e.g. \"The full story is in our 6-minute video — tap the link below!\")." : "\nThis is the full 6-minute video; our Short on the same topic teased it, so start by quickly paying off that teaser hook, then go deeper.";
         $("#vq").value = topic; $("#vtopic").value = ""; $("#vlen").value = len;
         say(`📝 ${nm} ki script likhi ja rahi hai: <b>${esc(topic)}</b>…`);
         if (!(await makePlan())) throw new Error($("#vmsg").textContent.replace(/^❌\s*/, "") || "Script nahi bani");
@@ -1911,12 +1913,13 @@ const Video = (() => {
       }
       const c = autoCfg(); c.done = (c.done || []).concat({ topic, at: Date.now() }).slice(-60); c.last = { at: Date.now(), topic, results }; S.set(AUTO, c);
       uploadNudge();
-      if (IS_APP && window.Native.remind) window.Native.remind("video:ready", Date.now() + 3000, "✅ Aaj ki video taiyaar", topic + " — Short + 3 minute. Dekho aur upload karo.");
+      if (IS_APP && window.Native.remind) window.Native.remind("video:ready", Date.now() + 3000, "✅ Aaj ki video taiyaar", topic + " — Short + 6 minute. Dekho aur upload karo.");
       drawAuto(); say("✅ Dono video taiyaar — neeche dekho, phir upload karo.");
       $("#vauto").scrollIntoView({ block: "start" });
     } catch (e) {
       say("❌ " + esc(e.message || "Auto video nahi bani") + "<br><span class='muted'>Jo awaaz ban chuki hai wo save hai — thodi der baad ▶️ dobara dabao, wahin se aage banegi.</span>");
     }
+    autoHint = "";
     if (IS_APP && window.Native.dim) window.Native.dim(false);
     if (IS_APP) window.Native.keepScreenOn(false);
     autoBusy = false;
