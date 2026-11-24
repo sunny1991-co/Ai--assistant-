@@ -358,8 +358,10 @@ const Video = (() => {
         <button class="btn primary wide" id="vplan">✍️ Script banao</button>
         <div id="vmsg" class="small" style="margin-top:6px"></div>
       </div>
+      <div class="card" id="vauto"></div>
       <div class="card" id="vabroad"></div>
       <div id="vedit"></div></div>`;
+    drawAuto(); autoSchedule();
     if (typeof Trends !== "undefined") Trends.abroadPanel($("#vabroad"), t => { $("#vq").value = t; $("#vq").scrollIntoView({ behavior: "smooth", block: "center" }); toast("Vishay bhar diya — ab ✍️ Script banao"); });
     const chips = () => {
       const c = $("#vcat").value; S.set("vCat_g", c);
@@ -444,9 +446,10 @@ const Video = (() => {
     if (slides.length >= 3) { out.slides = slides.sort((a, b) => a.at - b.at).map(x => x.l); return out; }
     return null;
   }
+  let photosP = Promise.resolve();
   async function makePlan() {
     const q = $("#vq").value.trim(), facts = $("#vtopic").value.trim();
-    if (q.length < 2 && facts.length < 15) { toast("Kuch to likho — jaise: Taj Mahal"); return; }
+    if (q.length < 2 && facts.length < 15) { toast("Kuch to likho — jaise: Taj Mahal"); return false; }
     const shortIdea = q && q.split(/\s+/).length <= 4 && !/[?？]/.test(q);
     const g = mode === "g";
     const IDEA_HI = shortIdea ? `\n(Owner ne sirf ek chhota vishay/shabd likha hai: "${q}". Tum khud is par sabse rochak aur kaam ka angle chuno — log is baare mein kya jaanna chahte hain, koi chaunkane wala sach ya aam galti — aur usi par poori script likho. Agar ye vishay kanoon/police/court/haq se juda NAHI hai (jaise koi jagah, tyohaar, itihaas, khana), to kanoon wali baatein (vakil se milo, kanooni salah nahi) mat thoonso — sirf pakki, sahi aam jaankari do; baaki sab niyam wahi rahenge.)` : "";
@@ -549,8 +552,9 @@ const Video = (() => {
       $("#vmsg").textContent = (plan.cut ? "⚠️ Script thodi chhoti aayi (AI ne beech mein rok di) — " : "✅ ") + "Script taiyaar" + (g ? ` (format: ${{ qa: "sawaal-jawaab", myth: "myth vs fact", top: "top 5", story: "kahani" }[fmt] || "Hindi lesson"})` : "") + " — neeche padh ke sudhaar sakte ho";
       savePlan();
       drawEditor();
-      if (plan.style === "cartoon") findPhotos();
-    } catch (e) { $("#vmsg").innerHTML = "❌ " + esc(e.message || "Script nahi bani — dobara try karo") + (e.tries && e.tries.length ? `<br><span class="muted" style="font-size:11px">${esc(e.tries.join(" · "))}</span>` : ""); }
+      photosP = plan.style === "cartoon" ? Promise.resolve(findPhotos()).catch(() => {}) : Promise.resolve();
+      return true;
+    } catch (e) { $("#vmsg").innerHTML = "❌ " + esc(e.message || "Script nahi bani — dobara try karo") + (e.tries && e.tries.length ? `<br><span class="muted" style="font-size:11px">${esc(e.tries.join(" · "))}</span>` : ""); return false; }
   }
 
   function drawEditor() {
@@ -1695,7 +1699,8 @@ const Video = (() => {
   }
 
   async function make() {
-    if (busy) return;
+    if (busy) return null;
+    let result = null;
     const cartoon = plan.style === "cartoon";
     if (!cartoon && !IS_APP && !S.get("vVoice", "ai:Charon").startsWith("ai:")) { toast("Laptop pe 🤖 AI awaaz chuno (phone ki awaaz sirf phone app mein)"); return; }
     readEdits(); busy = true; if (IS_APP) window.Native.keepScreenOn(true);
@@ -1797,13 +1802,111 @@ const Video = (() => {
         ${IS_APP && outUri ? `<div class="row" style="margin-top:6px"><button class="btn primary" id="vplay">▶️ Video dekho</button><button class="btn" id="vshare">📤 YouTube / WhatsApp par bhejo</button></div>` : ""}
         <br>YouTube par daalte waqt title/description upar se copy karo.${fallbackNote ? "<br>⚠️ " + fallbackNote : ""}<br>ℹ️ YouTube puchhe "altered/synthetic content?" — AI awaaz ho to imaandaari se batana.` : "❌ Save nahi hua — phone ki storage bhari to nahi?");
       if (ok && IS_APP && outUri) { $("#vplay").onclick = () => window.Native.openMedia(outUri, base); $("#vshare").onclick = () => window.Native.shareMedia(outUri, base); }
+      result = { ok, name, uri: outUri || "", mime: base };
       ac.close();
     } catch (e) { say("❌ " + (e.message || "Video nahi bani")); S.del("vMaking"); }
     if (onVis) { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("apphide", onVis); window.removeEventListener("appshow", onVis); }
     busy = false; if (IS_APP) window.Native.keepScreenOn(false);
     if (IS_APP && window.Native.videoWork) window.Native.videoWork(false);
     const cv = $("#vbusy"); if (cv) cv.remove();
+    return result;
   }
 
-  return { _draw: drawChar, _pose: poseOf, _music: musicPlayer, _sfx: sfx, render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, extra && extra.endKind ? "end" : "slide", s, extra && extra.prog != null ? extra.prog : 0.5, extra && extra.idx != null ? extra.idx : 2, 8, "Kanoon Aasaan", tsec, m); } };
+
+  // 🤖 Aaj ki Video (Global): today's topic from what people abroad search about India → Short + 3-minute video.
+  // The owner checks and uploads by hand. Daily notification at the chosen time; tap → runs by itself.
+  const AUTO = "autoG";
+  const autoCfg = () => Object.assign({ on: false, time: "05:30", done: [] }, S.get(AUTO, {}));
+  const normT = t => String(t || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\b(the|a|an|in|of|india|indian|indians)\b/g, " ").replace(/\s+/g, " ").trim();
+  function autoSchedule() {
+    if (!IS_APP || !window.Native.remind) return;
+    const a = autoCfg();
+    try { window.Native.cancelRemind("auto:global"); } catch (e) { /* old app */ }
+    if (!a.on) return;
+    const [h, m] = a.time.split(":").map(Number), t = new Date(); t.setHours(h || 5, m || 0, 0, 0);
+    if (t <= new Date()) t.setDate(t.getDate() + 1);
+    window.Native.remind("auto:global", t.getTime(), "🤖 Aaj ki video banao", "Dabao — phone charger par lagao, Sahayak aaj ka vishay chun kar Short + 3 minute video bana dega");
+  }
+  function uploadNudge() {
+    if (!IS_APP || !window.Native.remind) return;
+    const t = new Date(); t.setHours(6, 45, 0, 0);
+    const now = new Date();
+    if (now > t && now.getHours() < 9) return; // it is upload time already
+    if (now > t) t.setDate(t.getDate() + 1);
+    window.Native.remind("video:upload", t.getTime(), "📤 Upload ka sahi time", "America mein abhi shaam hai — aaj ki video YouTube par daal do (title/description Sahayak mein ready hai)");
+  }
+  function drawAuto() {
+    const el = $("#vauto"); if (!el) return;
+    const a = autoCfg(), last = a.last;
+    el.innerHTML = `<h3 style="margin-top:0">🤖 Aaj ki Video (apne aap)</h3>
+      <p class="muted small">Bahar ke log India ke baare mein kya search kar rahe hain → sabse achha naya vishay → Short (~35 sec) + 3 minute video. Aap sirf dekh kar upload karo.</p>
+      <button class="btn primary wide" id="aurun">▶️ Abhi banao (Short + 3 min)</button>
+      <p class="small muted">🔌 Phone charger par lagao. Screen dheemi ho jaayegi — app mat chhodo, lock mat karo. ~10-15 minute.</p>
+      <div class="row" style="align-items:flex-end">${IS_APP ? `<label class="field" style="flex:1">🔔 Roz yaad dilao<select id="auon"><option value="0" ${a.on ? "" : "selected"}>Band</option><option value="1" ${a.on ? "selected" : ""}>Haan</option></select></label><label class="field" style="flex:1">Kis time<input type="time" id="autime" value="${esc(a.time)}"></label>` : ""}</div>
+      <p class="small">⏰ <b>Upload ka sahi time: subah 6:30 – 8:00</b> (tab America/Canada mein shaam hoti hai). Isliye video raat ko ya subah 5-6 baje banao.</p>
+      <div id="aumsg" class="small"></div>
+      ${last && last.results ? `<h3>✅ Pichhli: ${esc(last.topic)} <small class="muted">(${new Date(last.at).toLocaleString("en-IN")})</small></h3>
+        ${last.results.map((r, k) => `<div class="list-item small" style="display:block"><b>${r.len === "short" ? "📱 Short" : "▶️ 3 minute"}</b> — ${esc(r.title)}
+          <div class="row" style="margin-top:4px;flex-wrap:wrap">${IS_APP && r.uri ? `<button class="btn" data-aup="${k}">▶️ Dekho</button><button class="btn" data-aush="${k}">📤 Share</button>` : ""}<button class="btn" data-auc="${k}:title">📋 Title</button><button class="btn" data-auc="${k}:desc">📋 Description</button><button class="btn" data-auc="${k}:tags">📋 Tags</button></div></div>`).join("")}
+        <div class="banner small">Upload se pehle: ☑️ poori video ek baar dekho · ☑️ tathya sahi lage · ☑️ YouTube mein "Altered or synthetic content" = <b>Yes</b> · ☑️ Short ko khada, 3 minute wali ko seedha upload karo.</div>` : ""}`;
+    $("#aurun").onclick = () => autoRun();
+    if ($("#auon")) {
+      const save = () => { const c = autoCfg(); c.on = $("#auon").value === "1"; c.time = $("#autime").value || "05:30"; S.set(AUTO, c); if (c.on && window.Native.askNotify) window.Native.askNotify(); autoSchedule(); toast(c.on ? "🔔 Roz " + c.time + " baje yaad dilaunga" : "Roz ki yaad band"); };
+      $("#auon").onchange = save; $("#autime").onchange = save;
+    }
+    $$("[data-aup]").forEach(b => b.onclick = () => { const r = last.results[+b.dataset.aup]; window.Native.openMedia(r.uri, r.mime); });
+    $$("[data-aush]").forEach(b => b.onclick = () => { const r = last.results[+b.dataset.aush]; window.Native.shareMedia(r.uri, r.mime); });
+    $$("[data-auc]").forEach(b => b.onclick = async () => {
+      const [k, f] = b.dataset.auc.split(":"), r = last.results[+k];
+      const txt = f === "title" ? r.title : f === "desc" ? r.description : (r.tags || []).join(", ");
+      try { await navigator.clipboard.writeText(txt); toast("📋 Copy ho gaya"); } catch (e) { if (window.Native && window.Native.share) window.Native.share(txt); }
+    });
+  }
+  let autoBusy = false;
+  async function autoRun() {
+    if (autoBusy || busy) return;
+    if (mode !== "g" || !$("#vauto")) { App.go("global"); await new Promise(r => setTimeout(r, 600)); }
+    autoBusy = true;
+    const say = t => { const m = $("#aumsg"); if (m) m.innerHTML = t; };
+    $("#vauto").scrollIntoView({ block: "start" });
+    if (IS_APP && window.Native.dim) window.Native.dim(true);
+    if (IS_APP) window.Native.keepScreenOn(true);
+    try {
+      let snap = S.get("trend.abroad", null);
+      if (!snap || Date.now() - snap.at > 20 * 3600e3 || !(snap.ideas || []).length) {
+        if (typeof Trends === "undefined" || !Trends.abroad) throw new Error("Trends hissa nahi mila — app update karo");
+        snap = await Trends.abroad(t => say(t));
+      }
+      const a = autoCfg(), recent = new Set((a.done || []).filter(d => Date.now() - d.at < 30 * 864e5).map(d => normT(d.topic)));
+      const cands = (snap.ideas || []).map(x => x.topic).concat((snap.top || []).map(t => t.q));
+      const topic = cands.find(t => normT(t) && !recent.has(normT(t)));
+      if (!topic) throw new Error("Aaj koi naya vishay nahi mila — kal phir try karo");
+      const results = [];
+      if ($("#vstyle")) $("#vstyle").value = "cartoon";
+      if ($("#vfmt")) $("#vfmt").value = "auto";
+      for (const len of ["short", "mid"]) {
+        const nm = len === "short" ? "📱 Short" : "▶️ 3 minute";
+        $("#vq").value = topic; $("#vtopic").value = ""; $("#vlen").value = len;
+        say(`📝 ${nm} ki script likhi ja rahi hai: <b>${esc(topic)}</b>…`);
+        if (!(await makePlan())) throw new Error($("#vmsg").textContent.replace(/^❌\s*/, "") || "Script nahi bani");
+        await Promise.race([photosP, new Promise(r => setTimeout(r, 25000))]);
+        say(`🎬 ${nm} video ban rahi hai… (screen chalu rehne do)`);
+        const r = await make();
+        if (!r || !r.ok) throw new Error(($("#vprog") ? $("#vprog").textContent : "").replace(/^❌\s*/, "") || "Video nahi bani");
+        results.push({ len, title: plan.title || "", description: plan.description || "", tags: plan.tags || [], name: r.name, uri: r.uri, mime: r.mime });
+      }
+      const c = autoCfg(); c.done = (c.done || []).concat({ topic, at: Date.now() }).slice(-60); c.last = { at: Date.now(), topic, results }; S.set(AUTO, c);
+      uploadNudge();
+      if (IS_APP && window.Native.remind) window.Native.remind("video:ready", Date.now() + 3000, "✅ Aaj ki video taiyaar", topic + " — Short + 3 minute. Dekho aur upload karo.");
+      drawAuto(); say("✅ Dono video taiyaar — neeche dekho, phir upload karo.");
+      $("#vauto").scrollIntoView({ block: "start" });
+    } catch (e) {
+      say("❌ " + esc(e.message || "Auto video nahi bani") + "<br><span class='muted'>Jo awaaz ban chuki hai wo save hai — thodi der baad ▶️ dobara dabao, wahin se aage banegi.</span>");
+    }
+    if (IS_APP && window.Native.dim) window.Native.dim(false);
+    if (IS_APP) window.Native.keepScreenOn(false);
+    autoBusy = false;
+  }
+
+  return { autoRun, _draw: drawChar, _pose: poseOf, _music: musicPlayer, _sfx: sfx, render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, extra && extra.endKind ? "end" : "slide", s, extra && extra.prog != null ? extra.prog : 0.5, extra && extra.idx != null ? extra.idx : 2, 8, "Kanoon Aasaan", tsec, m); } };
 })();

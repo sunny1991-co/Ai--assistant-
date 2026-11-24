@@ -5,6 +5,7 @@ const App = (() => {
   let current = "chat";
 
   function go(v) {
+    if (v === "global-auto") { go("global"); setTimeout(() => Video.autoRun(), 900); return; } // daily notification tapped
     if (!VIEWS[v]) v = "chat";
     if (current === "chat" && v !== "chat") Chat.stopAll();
     current = v;

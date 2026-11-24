@@ -65,6 +65,9 @@ public class ReminderReceiver extends BroadcastReceiver {
             String key = intent.getStringExtra("key");
             store(c).edit().remove(key).apply();
             show(c, key, intent.getStringExtra("title"), intent.getStringExtra("body"));
+            // daily ones ("auto:…") set themselves again for tomorrow, even if the app is not opened
+            if (key != null && key.startsWith("auto:"))
+                schedule(c, key, System.currentTimeMillis() + 24L * 3600 * 1000 - 60 * 1000, intent.getStringExtra("title"), intent.getStringExtra("body"));
         } else if (Intent.ACTION_BOOT_COMPLETED.equals(a) || Intent.ACTION_MY_PACKAGE_REPLACED.equals(a)) {
             for (String k : new ArrayList<>(store(c).getAll().keySet())) {
                 try {
@@ -86,13 +89,14 @@ public class ReminderReceiver extends BroadcastReceiver {
         } else {
             b = new Notification.Builder(c).setPriority(Notification.PRIORITY_HIGH).setDefaults(Notification.DEFAULT_ALL);
         }
-        Intent open = new Intent(c, MainActivity.class).putExtra("view", "cases")
+        String view = key == null ? "cases" : key.startsWith("auto:") ? "global-auto" : key.startsWith("video:") ? "global" : "cases";
+        Intent open = new Intent(c, MainActivity.class).putExtra("view", view)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         b.setSmallIcon(R.drawable.ic_notify)
                 .setContentTitle(title == null ? "Sahayak" : title)
                 .setContentText(body == null ? "" : body)
                 .setAutoCancel(true)
-                .setContentIntent(PendingIntent.getActivity(c, 1, open,
+                .setContentIntent(PendingIntent.getActivity(c, key == null ? 1 : key.hashCode(), open,
                         PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
         nm.notify(key == null ? 1 : key.hashCode(), b.build());
     }

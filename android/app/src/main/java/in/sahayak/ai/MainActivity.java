@@ -152,7 +152,7 @@ public class MainActivity extends FragmentActivity {
         });
         web.addJavascriptInterface(new Bridge(), "Native");
         String view = getIntent().getStringExtra("view");
-        web.loadUrl(START + ("cases".equals(view) ? "#cases" : ""));
+        web.loadUrl(START + (view != null && view.matches("[a-z-]+") ? "#" + view : ""));
         if (lockOn()) { web.setVisibility(View.INVISIBLE); needLock = true; }
     }
 
@@ -246,8 +246,9 @@ public class MainActivity extends FragmentActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        if ("cases".equals(intent.getStringExtra("view")))
-            web.evaluateJavascript("window.App&&App.go('cases')", null);
+        String v = intent.getStringExtra("view");
+        if (v != null && v.matches("[a-z-]+"))
+            web.evaluateJavascript("window.App&&App.go('" + v + "')", null);
     }
 
     // ---------- results from file picker / voice ----------
@@ -761,6 +762,16 @@ public class MainActivity extends FragmentActivity {
         @JavascriptInterface
         public void remind(String key, double when, String title, String body) {
             ReminderReceiver.schedule(MainActivity.this, key, (long) when, title, body);
+        }
+
+        /** Auto video at night: dim the screen (it must stay on for the video to record). */
+        @JavascriptInterface
+        public void dim(boolean on) {
+            runOnUiThread(() -> {
+                android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.screenBrightness = on ? 0.02f : android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+                getWindow().setAttributes(lp);
+            });
         }
 
         @JavascriptInterface

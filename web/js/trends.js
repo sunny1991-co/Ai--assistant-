@@ -198,5 +198,5 @@ const Trends = (() => {
   // weekly reminder on the chat home
   function due() { const t = S.get("trendLastRun", 0); return t && Date.now() - t > 7 * 86400000; }
 
-  return { render, due, abroadPanel };
+  return { render, due, abroadPanel, abroad };
 })();
