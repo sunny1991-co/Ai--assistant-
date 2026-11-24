@@ -65,7 +65,7 @@ const Video = (() => {
       daant: "Deliver this line as a playful scolding — firm and a bit louder, like a big sister telling off a friend, not really angry. ", shayari: "Deliver this line like a short poem — rhythmic and warm, with gentle pauses. " },
   };
   async function aiVoice(text, voice, who, mood, onWait) {
-    const ck = "v2|" + (EN() ? "en|" + (who || "") + "|" : "hi|") + (mood || "") + "|" + voice + "|" + text;
+    const ck = voiceCk(text, voice, who, mood);
     if (ttsCache.has(ck)) return ttsCache.get(ck).slice(0);
     const saved = await idb.get(ck);
     if (saved && saved.v) { ttsCache.set(ck, saved.v.slice(0)); return saved.v.slice(0); }
@@ -82,6 +82,10 @@ const Video = (() => {
     // keep the same person's voice the whole video: say clearly man/woman, one speaker, no acting other characters
     const fem = FEMALE.has(voice);
     body.contents[0].parts[0].text = (EN() ? `[Single speaker, ${fem ? "female" : "male"} voice throughout. Do not change voice or imitate other characters.]\n` : `[Sirf ek bolne wala, poori line ${fem ? "aurat" : "aadmi"} ki isi awaaz mein. Awaaz mat badlo, kisi aur kirdaar ki nakal mat karo.]\n`) + body.contents[0].parts[0].text;
+    return ttsCall(body, onWait);
+  }
+
+  async function ttsCall(body, onWait) {
     const ok = S.get("ttsModel", "");
     const order = ok ? [ok, ...TTS_MODELS.filter(m => m !== ok)] : TTS_MODELS;
     let last = "";
@@ -112,6 +116,82 @@ const Video = (() => {
       }
     }
     throw new Error(last || "AI awaaz nahi bani");
+  }
+
+  // ⚡ Batch voices: up to ~10 lines (max 2 speakers) in ONE Google request, then cut the audio at the pauses.
+  // Free TTS has a small daily request limit — 30 one-line requests used to finish it in one video.
+  const voiceCk = (text, voice, who, mood) => "v2|" + (EN() ? "en|" + (who || "") + "|" : "hi|") + (mood || "") + "|" + voice + "|" + text;
+  function wavPcm(buf) {
+    const v = new DataView(buf); let rate = 24000, off = 12;
+    while (off + 8 <= buf.byteLength) {
+      const id = String.fromCharCode(v.getUint8(off), v.getUint8(off + 1), v.getUint8(off + 2), v.getUint8(off + 3)), len = v.getUint32(off + 4, true);
+      if (id === "fmt ") rate = v.getUint32(off + 12, true);
+      if (id === "data") return { pcm: new Int16Array(buf.slice(off + 8, off + 8 + Math.min(len, buf.byteLength - off - 8) & ~1)), rate };
+      off += 8 + len + (len & 1);
+    }
+    return { pcm: new Int16Array(buf.slice(44, 44 + ((buf.byteLength - 44) & ~1))), rate };
+  }
+  function pcmWav(pcm, rate) {
+    const n = pcm.length * 2, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    const w = (o, s2) => { for (let i = 0; i < s2.length; i++) v.setUint8(o + i, s2.charCodeAt(i)); };
+    w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n, true);
+    new Int16Array(buf, 44).set(pcm); return buf;
+  }
+  // cut one long take into n parts: prefer the n-1 longest pauses; check they fit the text lengths, else nearest pause to the expected spot
+  function splitTake(pcm, rate, weights) {
+    const n = weights.length; if (n === 1) return [pcm];
+    const F = Math.round(rate * 0.02), nf = Math.floor(pcm.length / F), rms = new Float32Array(nf);
+    for (let f = 0; f < nf; f++) { let sum = 0; for (let i = f * F; i < (f + 1) * F; i++) sum += pcm[i] * pcm[i]; rms[f] = Math.sqrt(sum / F); }
+    const sorted = Array.from(rms).sort((x, y) => x - y), thr = Math.max(200, sorted[Math.floor(nf * 0.95)] * 0.1);
+    let first = 0, lastF = nf - 1; while (first < nf && rms[first] < thr) first++; while (lastF > first && rms[lastF] < thr) lastF--;
+    const runs = []; let st = -1;
+    for (let f = first; f <= lastF + 1; f++) { const sil = f <= lastF && rms[f] < thr; if (sil && st < 0) st = f; if (!sil && st >= 0) { if (f - st >= 6) runs.push({ c: Math.round((st + f) / 2), len: f - st }); st = -1; } }
+    const tot = weights.reduce((x, y) => x + y, 0), span = lastF - first, expect = []; let acc = 0;
+    for (let k = 0; k < n - 1; k++) { acc += weights[k]; expect.push(first + span * acc / tot); }
+    let cuts = null;
+    if (runs.length >= n - 1) {
+      const pick = runs.slice().sort((x, y) => y.len - x.len).slice(0, n - 1).map(r => r.c).sort((x, y) => x - y);
+      const okFit = pick.every((c, k) => Math.abs(c - expect[k]) < span / n * 0.9);
+      if (okFit) cuts = pick;
+    }
+    if (!cuts) { cuts = []; let prev = first; for (let k = 0; k < n - 1; k++) { const lo = prev + 10, cand = runs.filter(r => r.c > lo); let best = cand.sort((x, y) => Math.abs(x.c - expect[k]) - Math.abs(y.c - expect[k]))[0]; const c = best && Math.abs(best.c - expect[k]) < span / n * 0.6 ? best.c : Math.max(lo, Math.round(expect[k])); cuts.push(c); prev = c; } }
+    const edges = [0].concat(cuts.map(c => c * F), [pcm.length]);
+    return weights.map((_, k) => pcm.slice(edges[k], edges[k + 1]));
+  }
+  async function batchVoices(from, to, onWait, onStep) {
+    if (plan.style !== "cartoon" || engine() !== "ai") return;
+    const items = [];
+    for (let i = from; i < to; i++) {
+      if (voices[i]) continue;
+      const sl = plan.slides[i], text = sl.narration || sl.heading || " ", who = sl.who === "B" || sl.who === "N" ? sl.who : "A", voice = voiceOf(sl.who), ck = voiceCk(text, voice, sl.who, sl.mood);
+      if (ttsCache.has(ck) || (await idb.get(ck))) continue;
+      items.push({ i, text, who, voice, ck });
+    }
+    const chunks = []; let cur = [];
+    for (const it of items) {
+      const spk = new Set(cur.map(x => x.who).concat(it.who)), chars = cur.reduce((x, y) => x + y.text.length, 0) + it.text.length;
+      if (cur.length && (spk.size > 2 || cur.length >= 10 || chars > 900 || it.i !== cur[cur.length - 1].i + 1)) { chunks.push(cur); cur = []; }
+      cur.push(it);
+    }
+    if (cur.length) chunks.push(cur);
+    let done = 0;
+    for (const ch of chunks) {
+      if (onStep) onStep(done, items.length);
+      if (ch.length === 1) { await aiVoice(ch[0].text, ch[0].voice, plan.slides[ch[0].i].who, plan.slides[ch[0].i].mood, onWait); done++; continue; }
+      const label = w => w === "N" ? (EN() ? "Narrator" : "Kathavachak") : String(plan.names[w] || w).replace(/[^\p{L}\p{N} ]/gu, "").trim() || w;
+      const whos = [...new Set(ch.map(x => x.who))];
+      const tone = EN() ? `Read this animated-video conversation aloud. Natural, expressive, real emotions and reactions (laugh, surprise, scolding, seriousness as the words suggest) — not robotic. Leave a clear short pause between lines. Keep each person's voice the same throughout. ${whos.includes("N") ? "The Narrator is a warm, gripping storyteller. " : ""}\n\n`
+        : `Ye cartoon video ki baatcheet Hindi mein zor se padho. Bilkul asli, bhavna ke saath — jahan mazaak ho wahan hansi, daant ho to daant, gambhir baat pe gambhir; robot ya news reader jaisa nahi. Har line ke baad saaf chhota sa thehrav do. Har kirdaar ki awaaz shuru se aakhir tak wahi rahe. ${whos.includes("N") ? "Kathavachak garm, rochak kahani sunane wala hai. " : ""}\n\n`;
+      const body = { contents: [{ role: "user", parts: [{ text: tone + ch.map(x => label(x.who) + ": " + x.text).join("\n") }] }],
+        generationConfig: { responseModalities: ["AUDIO"], speechConfig: whos.length === 2
+          ? { multiSpeakerVoiceConfig: { speakerVoiceConfigs: whos.map(w => ({ speaker: label(w), voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceOf(w) } } })) } }
+          : { voiceConfig: { prebuiltVoiceConfig: { voiceName: ch[0].voice } } } } };
+      const wav = await ttsCall(body, onWait);
+      const { pcm, rate } = wavPcm(wav), parts = splitTake(pcm, rate, ch.map(x => Math.max(4, x.text.length)));
+      ch.forEach((x, k) => { const b2 = pcmWav(parts[k], rate); ttsCache.set(x.ck, b2.slice(0)); idb.put(x.ck, b2.slice(0)); });
+      done += ch.length;
+    }
   }
 
   // 🎙️ teleprompter: big script on screen, record, stop
@@ -693,6 +773,7 @@ const Video = (() => {
       (async () => {
         const n = Math.min(3, plan.slides.length), segs = [];
         try {
+          try { await batchVoices(0, n); } catch (e) { /* per-line below */ }
           for (let i = 0; i < n && !stop; i++) {
             st.innerHTML = `<span class="dots"><i></i><i></i><i></i></span> Awaaz ban rahi hai… ${i + 1}/${n}`;
             const b = await lineAudio(ac, i); segs.push({ i, buf: b, env: envelope(b) });
@@ -1630,6 +1711,7 @@ const Video = (() => {
     try {
       const ac = new (window.AudioContext || window.webkitAudioContext)();
       const bufs = []; let fallbackNote = "";
+      if (cartoon) { try { await batchVoices(0, plan.slides.length, sec => say(`🔊 Google ki limit — ${sec} second ruk kar dobara…`), (d, t) => say(`🔊 Awaaz ek saath ban rahi hai… ${d}/${t} line`)); } catch (e) { /* the per-line loop below reports it */ } }
       for (let i = 0; i < plan.slides.length; i++) {
         say(`🔊 Awaaz taiyaar ho rahi hai… ${i + 1}/${plan.slides.length}`); stage(`awaaz ${i + 1}/${plan.slides.length}`);
         if (voices[i]) { bufs.push(await ac.decodeAudioData(await voices[i].blob.arrayBuffer())); continue; }
