@@ -390,6 +390,7 @@ public class MainActivity extends FragmentActivity {
 
     /** Indian voice: the one the user chose, else the best installed hi-IN / en-IN voice. */
     private void pickVoice(String lang) {
+        try { tts.setPitch(1f); } catch (Exception ignored) { }
         try {
             String want = prefs.getString("voice", "");
             android.speech.tts.Voice best = null;
@@ -495,7 +496,7 @@ public class MainActivity extends FragmentActivity {
                     if (ttsReady) for (android.speech.tts.Voice v : tts.getVoices()) {
                         if (v.getFeatures() != null && v.getFeatures().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)) continue;
                         String l = v.getLocale().toLanguageTag();
-                        if (!(l.startsWith("hi") || l.equals("en-IN") || l.endsWith("-IN"))) continue;
+                        if (!(l.startsWith("hi") || l.startsWith("en") || l.endsWith("-IN"))) continue;
                         arr.put(new JSONObject().put("name", v.getName()).put("locale", l).put("net", v.isNetworkConnectionRequired()));
                     }
                 } catch (Exception ignored) { }
@@ -520,6 +521,26 @@ public class MainActivity extends FragmentActivity {
                 if (!ttsReady) { cb(id, obj("error", "Phone mein bolne wala engine nahi mila")); return; }
                 pickVoice(lang);
                 tts.setSpeechRate((float) Math.max(0.6, Math.min(1.6, rate)));
+                File f = new File(getCacheDir(), "tts_" + id.replaceAll("[^A-Za-z0-9]", "") + ".wav");
+                int r = tts.synthesizeToFile(text.length() > 3900 ? text.substring(0, 3900) : text, null, f, "file:" + id);
+                if (r != TextToSpeech.SUCCESS) cb(id, obj("error", "Awaaz file nahi bani"));
+            }));
+        }
+
+        /** Video characters: a chosen phone voice + pitch per character (free, no limit). */
+        @JavascriptInterface
+        public void speakToFileV(String id, String text, String lang, double rate, String voiceName, double pitch) {
+            runOnUiThread(() -> withTts(() -> {
+                if (!ttsReady) { cb(id, obj("error", "Phone mein bolne wala engine nahi mila")); return; }
+                boolean set = false;
+                try {
+                    if (voiceName != null && !voiceName.isEmpty()) for (android.speech.tts.Voice v : tts.getVoices()) {
+                        if (v.getName().equals(voiceName)) { tts.setVoice(v); set = true; break; }
+                    }
+                } catch (Exception ignored) { }
+                if (!set) pickVoice(lang);
+                tts.setSpeechRate((float) Math.max(0.6, Math.min(1.6, rate)));
+                tts.setPitch((float) Math.max(0.5, Math.min(2.0, pitch)));
                 File f = new File(getCacheDir(), "tts_" + id.replaceAll("[^A-Za-z0-9]", "") + ".wav");
                 int r = tts.synthesizeToFile(text.length() > 3900 ? text.substring(0, 3900) : text, null, f, "file:" + id);
                 if (r != TextToSpeech.SUCCESS) cb(id, obj("error", "Awaaz file nahi bani"));
