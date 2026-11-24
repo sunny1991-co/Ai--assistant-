@@ -9,6 +9,25 @@ const Video = (() => {
   const K = k => (mode === "g" ? k + "_g" : k); // separate settings per channel
   const vA = () => S.get(K("vVoiceA"), "Puck"), vB = () => S.get(K("vVoiceB"), mode === "g" ? "Aoede" : "Charon");
   const vN = () => S.get(K("vVoiceN"), mode === "g" ? "Kore" : "Orus");
+  // 📱 phone voices for characters: free, no daily limit (owner's choice in the editor)
+  const PHONE_OK = () => IS_APP && !!(window.Native && window.Native.speakToFileV);
+  const engine = () => PHONE_OK() ? S.get(K("vEngine"), "ai") : "ai";
+  const PITCH = [["1.25", "Patli / bachche jaisi"], ["1.12", "Thodi patli"], ["1.0", "Normal"], ["0.9", "Thodi bhaari"], ["0.8", "Bhaari / buzurg"]];
+  const DEF_PITCH = { A: mode === "g" ? "1.0" : "1.12", B: mode === "g" ? "1.12" : "0.8", N: "0.9" };
+  const pvName = w => S.get(K("pv" + w), ""), pvPitch = w => S.get(K("pp" + w), DEF_PITCH[w]);
+  let phoneList = null;
+  async function phoneVoices() {
+    if (phoneList) return phoneList;
+    try { const r = await nativeCall("voices"); phoneList = (r.voices || []).filter(v => EN() ? /^en/.test(v.locale) : /^hi/.test(v.locale)); } catch (e) { phoneList = []; }
+    return phoneList;
+  }
+  async function phoneLine(ac, text, who) {
+    const w = who === "B" || who === "N" ? who : "A";
+    const r = await nativeCall("speakToFileV", text || " ", EN() ? "en-US" : "hi-IN", S.get("voiceRate", 1), pvName(w), +pvPitch(w));
+    if (r.error) throw new Error(r.error);
+    const bin = atob(r.b64), arr = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+    return ac.decodeAudioData(arr.buffer);
+  }
   const voiceOf = who => (who === "N" ? vN() : who === "B" ? vB() : vA());
   const CAT = () => (plan && plan.cat) || "";
   const voices = {}; // slide index -> {blob, dur} (owner's own recorded voice)
@@ -477,9 +496,13 @@ const Video = (() => {
         <div class="row"><button class="btn" data-pic="${i}">📷 ${photos[i] ? "Photo badlo" : "Apni photo lagao"}</button>${photos[i] ? `<button class="btn" data-unpic="${i}">✕ Photo hatao</button>` : ""}</div>
         <div class="row"><button class="btn" data-rec="${i}">🎙️ Apni awaaz record karo</button><span class="small" data-rs="${i}">${voices[i] ? "✅ Aapki awaaz (" + voices[i].dur.toFixed(0) + " sec) <button class='btn' data-play='" + i + "'>▶️</button>" : "Record nahi kiya to phone ki Indian awaaz"}</span></div></div>`).join("")}
       <div class="card">${p.style === "cartoon" ? `
+        ${PHONE_OK() ? `<label class="field">🔊 Awaaz kahan se<select id="veng"><option value="ai" ${engine() === "ai" ? "selected" : ""}>🤖 Google AI — insaan jaisi, par roz ki free limit</option><option value="phone" ${engine() === "phone" ? "selected" : ""}>📱 Phone ki awaaz — free, koi limit nahi</option></select></label>
+        <div id="vphv" ${engine() === "phone" ? "" : "hidden"}>${["A", "B"].concat(p.kahani ? ["N"] : []).map(w => `<div class="row"><label class="field" style="flex:2">${w === "N" ? "📖 Narrator" : esc(p.names[w])} — phone awaaz<select data-pv="${w}"><option value="">Apne aap</option></select></label><label class="field" style="flex:2">Bhaaripan<select data-pp="${w}">${PITCH.map(([k, t]) => `<option value="${k}" ${pvPitch(w) === k ? "selected" : ""}>${t}</option>`).join("")}</select></label><button class="btn" data-pvt="${w}" style="align-self:flex-end">▶️</button></div>`).join("")}
+          <div class="small muted">Dono kirdaar ki awaaz alag rakho (alag awaaz ya alag bhaaripan). Aur awaazein chahiye to: phone Settings → "Text-to-speech" → Google → Hindi ki awaaz download.</div></div>
+        <div id="vaiv" ${engine() === "phone" ? "hidden" : ""}>` : "<div>"}
         <label class="field">🙋 ${esc(p.names.A)} ki awaaz<select id="vva">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vA() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
         <label class="field">👴 ${esc(p.names.B)} ki awaaz<select id="vvb">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vB() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-        ${p.kahani ? `<label class="field">📖 Narrator ki awaaz<select id="vvn">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vN() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>` : ""}
+        ${p.kahani ? `<label class="field">📖 Narrator ki awaaz<select id="vvn">${AI_VOICES.map(([k, t]) => `<option value="${k}" ${vN() === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>` : ""}</div>
         <div class="row"><label class="field" style="flex:1">👕 ${esc(p.names.A)} ki dress<select id="vda">${Object.entries(DRESSES).map(([k, t]) => `<option value="${k}" ${((p.cast || {}).A || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
           <label class="field" style="flex:1">👕 ${esc(p.names.B)} ki dress<select id="vdb">${Object.entries(DRESSES).map(([k, t]) => `<option value="${k}" ${((p.cast || {}).B || "") === k ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
         <select id="vvoice" hidden><option value="ai:${vA()}"></option></select>` : `
@@ -522,6 +545,21 @@ const Video = (() => {
       $("#vva").onchange = e => { S.set(K("vVoiceA"), e.target.value); $("#vvoice").innerHTML = `<option value="ai:${e.target.value}"></option>`; };
       $("#vvb").onchange = e => S.set(K("vVoiceB"), e.target.value);
       if ($("#vvn")) $("#vvn").onchange = e => S.set(K("vVoiceN"), e.target.value);
+      if ($("#veng")) {
+        $("#veng").onchange = e => { S.set(K("vEngine"), e.target.value); $("#vphv").hidden = e.target.value !== "phone"; $("#vaiv").hidden = e.target.value === "phone"; };
+        phoneVoices().then(list => $$("[data-pv]").forEach(sel => {
+          const w = sel.dataset.pv;
+          sel.innerHTML = `<option value="">Apne aap</option>` + list.map((v, i) => `<option value="${esc(v.name)}" ${pvName(w) === v.name ? "selected" : ""}>Awaaz ${i + 1} · ${esc(v.locale)}${v.net ? " (internet)" : ""}</option>`).join("");
+        }));
+        $$("[data-pv]").forEach(sel => sel.onchange = () => S.set(K("pv" + sel.dataset.pv), sel.value));
+        $$("[data-pp]").forEach(sel => sel.onchange = () => S.set(K("pp" + sel.dataset.pp), sel.value));
+        $$("[data-pvt]").forEach(b => b.onclick = async () => {
+          const w = b.dataset.pvt, nm = w === "N" ? "" : plan.names[w];
+          try { const ac = new (window.AudioContext || window.webkitAudioContext)(); const buf = await phoneLine(ac, EN() ? `Hi, I am ${nm || "the narrator"}. This is how I sound.` : `नमस्ते, मैं ${nm || "कहानी सुनाने वाला"} हूँ। मेरी आवाज़ ऐसी है।`, w);
+            const src = ac.createBufferSource(); src.buffer = buf; src.connect(ac.destination); src.onended = () => ac.close(); src.start(); }
+          catch (e) { toast("❌ " + (e.message || "Awaaz nahi bani")); }
+        });
+      }
     }
     if (p.style === "cartoon") {
       $("#vtest").onclick = preview;
@@ -630,6 +668,7 @@ const Video = (() => {
   async function lineAudio(ac, i) {
     if (voices[i]) return ac.decodeAudioData(await voices[i].blob.arrayBuffer());
     const sl = plan.slides[i], text = sl.narration || sl.heading || " ";
+    if (plan.style === "cartoon" && engine() === "phone") return phoneLine(ac, text, sl.who);
     const vv = plan.style === "cartoon" ? "ai:" + voiceOf(sl.who) : S.get("vVoice", "ai:Charon");
     if (vv.startsWith("ai:")) {
       try { return await ac.decodeAudioData(await aiVoice(text, vv.slice(3), plan.style === "cartoon" ? sl.who : "", plan.style === "cartoon" ? sl.mood : "")); }
@@ -1595,6 +1634,7 @@ const Video = (() => {
         say(`🔊 Awaaz taiyaar ho rahi hai… ${i + 1}/${plan.slides.length}`); stage(`awaaz ${i + 1}/${plan.slides.length}`);
         if (voices[i]) { bufs.push(await ac.decodeAudioData(await voices[i].blob.arrayBuffer())); continue; }
         const vv = cartoon ? "ai:" + voiceOf(plan.slides[i].who) : S.get("vVoice", "ai:Charon"), text = plan.slides[i].narration || plan.slides[i].heading || " ";
+        if (cartoon && engine() === "phone") { bufs.push(await phoneLine(ac, text, plan.slides[i].who)); continue; }
         if (vv.startsWith("ai:")) {
           try { bufs.push(await ac.decodeAudioData(await aiVoice(text, vv.slice(3), cartoon ? plan.slides[i].who : "", cartoon ? plan.slides[i].mood : "", sec => say(`🔊 Awaaz ${i + 1}/${plan.slides.length} — Google ki limit, ${sec} second ruk kar dobara…`)))); continue; }
           catch (e) {
