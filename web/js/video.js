@@ -279,6 +279,19 @@ const Video = (() => {
     const p = S.get(K("vPlan"), null);
     if (p && Array.isArray(p.slides) && p.slides.length) { plan = p; plan.slides.forEach(x => { if (x.photo) loadImg(x.photo.url); }); }
   }
+  // 🎭 tone: plain and useful (default) or fun (jokes, rhyme, playful scolding)
+  const toneSel = () => `<select id="vtone"><option value="seedha" ${S.get(K("vTone"), "seedha") === "seedha" ? "selected" : ""}>🎯 Seedha aur kaam ka (bina zabardasti mazaak)</option><option value="mazedaar" ${S.get(K("vTone"), "seedha") === "mazedaar" ? "selected" : ""}>😄 Mazedaar (chutkule, shayari, nok-jhonk)</option></select>`;
+  // 🔎 before writing: a short fact sheet from Google Search, so the script is specific and correct
+  async function research(topic, g) {
+    const q = g ? `List 6-8 specific, verified facts about this topic that most people don't know — exact numbers, dates, real examples, common myths and the truth, practical tips. One short line each, as a bullet list. Only what reliable sources confirm; skip anything uncertain. No intro, no conclusion.
+Topic: ${topic}`
+      : `Is vishay par 6-8 khaas, pakke tathya do jo aam log nahi jaante — sahi numbers, tareekh, asli udaharan, aam galtiyan aur sach, kaam ki tips. Har tathya ek chhoti line, bullet list, Hinglish mein. Sirf wahi jo bharosemand sources se pakka ho; shaq ho to chhod do. Koi intro ya ant nahi.
+Vishay: ${topic}`;
+    try {
+      const r = await G.ask([{ role: "user", parts: [{ text: q }] }], { system: g ? "You are a careful fact researcher." : "Tum ek savdhan tathya-khoji (researcher) ho.", web: true, onPart: () => {}, onStatus: t => { $("#vmsg").textContent = "🔎 " + t; } });
+      return String(r.text || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 2500);
+    } catch (e) { return ""; }
+  }
   function render(m) {
     if (m && m !== mode) {
       plans[mode] = plan; mode = m; plan = plans[mode] || null;
@@ -298,10 +311,11 @@ const Video = (() => {
         <div class="row"><label class="field" style="flex:1">Lambai<select id="vlen">${Object.entries(LENGTHS).map(([k, v]) => `<option value="${k}" ${k === "mid" ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
         <label class="field" style="flex:1">Channel ka naam<input id="vch" value="${esc(S.get(K("vChannel"), ""))}" placeholder="Jaise: Kanoon Aasaan"></label></div>
         <div class="row"><label class="field" style="flex:1">Andaaz<select id="vstyle">
-          <option value="cartoon" ${S.get(K("vStyle"), "cartoon") === "cartoon" ? "selected" : ""}>🧑‍🤝‍🧑 Do cartoon aapas mein baat karein</option>
-          <option value="kahani" ${S.get(K("vStyle"), "cartoon") === "kahani" ? "selected" : ""}>🎬 Kahani / short film (narrator + kai jagah)</option>
-          <option value="slides" ${S.get(K("vStyle"), "cartoon") === "slides" ? "selected" : ""}>🖼️ Slides + ek awaaz</option></select></label></div>
-        <label class="field">🗣️ Bolchaal<select id="vbol"><option value="desi" ${S.get("vBol", "desi") === "desi" ? "selected" : ""}>Desi aam bhasha (kabhi-kabhi halki gaali: saala, kutta)</option><option value="saaf" ${S.get("vBol", "desi") === "saaf" ? "selected" : ""}>Saaf bhasha (koi gaali nahi)</option></select></label>
+          <option value="cartoon" ${S.get(K("vStyle"), "slides") === "cartoon" ? "selected" : ""}>🧑‍🤝‍🧑 Do cartoon aapas mein baat karein</option>
+          <option value="kahani" ${S.get(K("vStyle"), "slides") === "kahani" ? "selected" : ""}>🎬 Kahani / short film (narrator + kai jagah)</option>
+          <option value="slides" ${S.get(K("vStyle"), "slides") === "slides" ? "selected" : ""}>📸 Asli photos + ek awaaz (documentary — sabse saaf look)</option></select></label>
+          <label class="field" style="flex:1">🎭 Lehja${toneSel()}</label></div>
+        <label class="field">🗣️ Bolchaal<select id="vbol"><option value="saaf" ${S.get("vBol2", "saaf") === "saaf" ? "selected" : ""}>Saaf aam bhasha (koi gaali nahi) — YouTube kamaai ke liye behtar</option><option value="desi" ${S.get("vBol2", "saaf") === "desi" ? "selected" : ""}>Desi tapori bhasha (kabhi-kabhi halki gaali)</option></select></label>
         <div class="row" id="vacts"><label class="field" style="flex:1">🎭 Kirdaar A<select id="vaa">${Object.entries(ROSTER).map(([k, r]) => `<option value="${k}" ${S.get(K("vActA"), "pappu") === k ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label><label class="field" style="flex:1">🎭 Kirdaar B<select id="vab">${Object.entries(ROSTER).map(([k, r]) => `<option value="${k}" ${S.get(K("vActB"), "chacha") === k ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label></div>
         <div class="row" id="vnames"><label class="field" style="flex:1">🙋 Sawaal puchne wala<input id="vna" value="${esc(S.get("vNameA", "Pappu"))}"></label>
           <label class="field" style="flex:1">👴 Samjhane wale<input id="vnb" value="${esc(S.get("vNameB", "Chacha"))}"></label></div>
@@ -353,7 +367,8 @@ const Video = (() => {
         <div class="row" id="vacts"><label class="field" style="flex:1">🎭 Kirdaar A<select id="vaa">${Object.entries(ROSTER).map(([k, r]) => `<option value="${k}" ${S.get(K("vActA"), "leo") === k ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label><label class="field" style="flex:1">🎭 Kirdaar B<select id="vab">${Object.entries(ROSTER).map(([k, r]) => `<option value="${k}" ${S.get(K("vActB"), "priya") === k ? "selected" : ""}>${r[0]}</option>`).join("")}</select></label></div>
         <div class="row"><label class="field" style="flex:1">🧳 Sawaal puchne wala<input id="vna" value="${esc(S.get("vNameA_g", "Leo"))}"></label>
           <label class="field" style="flex:1">🙋‍♀️ Samjhane wali<input id="vnb" value="${esc(S.get("vNameB_g", "Priya"))}"></label></div>
-        <label class="field">Andaaz<select id="vstyle"><option value="cartoon" ${S.get("vStyle_g", "cartoon") === "cartoon" ? "selected" : ""}>🧑‍🤝‍🧑 Baatcheet (Short ke liye best)</option><option value="kahani" ${S.get("vStyle_g", "cartoon") === "kahani" ? "selected" : ""}>🎬 Kahani / short film (narrator + scenes)</option></select></label>
+        <div class="row"><label class="field" style="flex:1">Andaaz<select id="vstyle"><option value="cartoon" ${S.get("vStyle_g", "cartoon") === "cartoon" ? "selected" : ""}>🧑‍🤝‍🧑 Baatcheet (Short ke liye best)</option><option value="kahani" ${S.get("vStyle_g", "cartoon") === "kahani" ? "selected" : ""}>🎬 Kahani / short film (narrator + scenes)</option><option value="slides" ${S.get("vStyle_g", "cartoon") === "slides" ? "selected" : ""}>📸 Real photos + one voice (documentary)</option></select></label>
+          <label class="field" style="flex:1">🎭 Lehja${toneSel()}</label></div>
         <label class="field">Channel ka naam<input id="vch" value="${esc(S.get("vChannel_g", ""))}" placeholder="e.g. Hello India"></label>
         <button class="btn primary wide" id="vplan">✍️ Script banao</button>
         <div id="vmsg" class="small" style="margin-top:6px"></div>
@@ -375,7 +390,7 @@ const Video = (() => {
     if (plan) drawEditor();
   }
 
-  function globalPrompt(topic, nA, nB, cat, fmt, nl) {
+  function globalPrompt(topic, nA, nB, cat, fmt, nl, entOverride, extra) {
     return `Write a script for an animated YouTube video for an international audience (US, UK, worldwide). Two ORIGINAL cartoon characters talk:\n` +
       `A = "${nA}": a curious, friendly traveler from abroad who asks what viewers would ask, reacts honestly, sometimes gets things funny-wrong.\n` +
       `B = "${nB}": a warm, witty young Indian woman who explains simply with vivid everyday examples.\n\n` +
@@ -385,10 +400,10 @@ const Video = (() => {
       `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
       `About ${nl} lines, mostly alternating (sometimes one speaker says two lines).\n` +
       `STAGE: add top-level "cast":{"A":"(${DRS_LIST})","B":"(same list)"} — costumes for this story (e.g. one plays a shopkeeper, the other a police officer); "none" = their usual clothes. For each line pick "scene" where it happens; keep the same scene for several lines and change only when the story moves. Costumed characters still only share general information, never personal legal/medical/financial advice.\n` +
-      `ENTERTAINMENT (very important — it must be fun to watch, not a dry answer): include 2-3 clean jokes or puns that fit the moment (mood "funny"), ` +
+      (entOverride || `ENTERTAINMENT (very important — it must be fun to watch, not a dry answer): include 2-3 clean jokes or puns that fit the moment (mood "funny"), ` +
       `one short ORIGINAL two-line rhyme or poetic line, e.g. B sums up a point in verse (mood "shayari"; never quote famous poems or lyrics), ` +
       `one moment where ${nB} playfully scolds ${nA} for a silly idea or mistake (mood "daant"; affectionate, never mean), ` +
-      `and 1-3 serious beats where the topic needs respect or care (mood "serious"). Everything else "normal". Mix the moods so the energy goes up and down. Humor never targets a religion, culture, country, gender or any group.`;
+      `and 1-3 serious beats where the topic needs respect or care (mood "serious"). Everything else "normal". Mix the moods so the energy goes up and down. Humor never targets a religion, culture, country, gender or any group.`) + (extra || "");
   }
 
   function bindMic() {
@@ -410,7 +425,7 @@ const Video = (() => {
     const TXT = o => o && typeof o === "object" && !Array.isArray(o) ? ["text", "narration", "line", "dialogue", "says", "speech"].find(k => typeof o[k] === "string" && o[k].trim()) : null;
     const isLine = o => !!TXT(o) && ["who", "speaker", "character", "by", "name"].some(k => typeof o[k] === "string");
     const fix = (o, sc) => { const k = TXT(o), l = { ...o, text: String(o[k]) }; l.who = String(o.who || o.speaker || o.character || o.by || o.name || "A"); if (!l.scene && sc) l.scene = sc; return l; };
-    const headOf = j => ({ title: j.title || "", description: j.description || "", thumbnail_text: j.thumbnail_text || "", tags: Array.isArray(j.tags) ? j.tags : [], cast: j.cast });
+    const headOf = j => ({ title: j.title || "", description: j.description || "", thumbnail_text: j.thumbnail_text || "", tags: Array.isArray(j.tags) ? j.tags : [], cast: j.cast, legal: j.legal });
     const walk = (node, sc, out) => {
       if (Array.isArray(node)) { node.forEach(x => walk(x, sc, out)); return; }
       if (!node || typeof node !== "object") return;
@@ -458,7 +473,8 @@ const Video = (() => {
     S.set(K("vChannel"), $("#vch").value.trim());
     const len = $("#vlen").value, n = LENGTHS[len][1], style = $("#vstyle") ? $("#vstyle").value : "cartoon", isK = style === "kahani";
     S.set(K("vStyle"), style);
-    const bol = !g && $("#vbol") ? $("#vbol").value : "saaf"; if (!g && $("#vbol")) S.set("vBol", bol);
+    const bol = !g && $("#vbol") ? $("#vbol").value : "saaf"; if (!g && $("#vbol")) S.set("vBol2", bol);
+    const tone = $("#vtone") ? $("#vtone").value : "seedha"; S.set(K("vTone"), tone); const fun = tone === "mazedaar";
     const BOL = bol === "desi"
       ? `BHASHA: bilkul aam Bharatiya bolchaal — jaise gali-mohalle, chai ki dukaan pe log baat karte hain: chhote vakya, "arre yaar", "abe", "bhai", "chal hat", "kya bakwaas hai", aadhe-adhoore vakya, Hindi-English mix (jaise "tension mat le", "full confusion"). Kitaabi Hindi bilkul nahi. Gaali sirf HALKI aur kabhi-kabhi: poori video mein zyada se zyada 2-3 baar, sirf "saala", "kutta", "kamina", "gadha", "ullu" jaise shabd, sirf gusse ya mazaak ke pal mein, aur pehli 15 second mein bilkul nahi. Isse zyada gandi gaali, maa-behen ki gaali, jaati/dharm/aurat/viklang ke liye apmaanjanak shabd, ya peedit ko gaali KABHI nahi. `
       : `BHASHA: bilkul aam Bharatiya bolchaal — chhote vakya, "arre yaar", "bhai", Hindi-English mix; kitaabi Hindi nahi; koi gaali nahi. `;
@@ -476,7 +492,7 @@ const Video = (() => {
     const LANG = en ? `\n\nBHASHA (sabse zaroori): title, description, tags, thumbnail_text aur har line/narration/key/heading/points — SAB saral, natural English mein likho, videshi (US/UK/duniya ke) darshakon ke liye. Devanagari ya Hindi bilkul nahi. Indian shabd (FIR, thana, lakh) aaye to ek line mein samjhao. Disclaimer bhi English mein: "this is for education only, not legal advice — rules differ by country, talk to a qualified lawyer". Description ke aakhir mein: "⚠️ For education only. Not legal advice. No outcome is guaranteed." Kisi aur desh ka kanoon pakka pata na ho to uska daawa mat karo — kaho "rules differ by country". Comment wali line: "Has this happened to you? Tell us in the comments."` : "";
     const RULES = `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
       `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi; "pakka milega"/"case jeet jaoge" jaisi koi guarantee nahi.`;
-    const HEAD = `"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)"`;
+    const HEAD = `"legal":(true agar vishay kanoon/police/court/sarkari haq se juda hai, warna false),"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)"`;
     const nl = (isK ? { short: 7, mid: 34, long: 64 } : { short: 6, mid: 30, long: 56 })[len], mins = { short: "35 second", mid: "3 minute", long: "6 minute" }[len];
     // spoken words needed for the length (English ~140/min, Hindi ~130/min incl. pauses)
     const WORDS = { short: 85, mid: mode === "g" ? 440 : 400, long: mode === "g" ? 880 : 800 }[len];
@@ -487,40 +503,56 @@ const Video = (() => {
     const KEEP_HI = len === "short"
       ? `\nSHORT KE NIYAM (upar ki har baat se zyada zaroori): ye khadi YouTube Short hai — poori bolne ki lambai 40 SECOND SE KAM (kul lagbhag 80-90 shabd), theek ${nl} lines, har line max 12 shabd. Line 1 = jhatka, 8 shabd se kam: chaunkane wala sach, bada daava ya sawaal (namaste/intro/naam bilkul nahi). Ek hi baat, jaldi jawab. Aakhir mein "subscribe" wali lambi line nahi — ek punchline ya sawaal jis par log comment karein. Narrator sirf zaroorat ho to.`
       : `\nLOG RUKE RAHEIN (bahut zaroori): koi intro/namaste nahi — pehli line seedha sabse dilchasp pal ya sawaal. Pehle 15 second mein vaada karo ki aage kya milega ("aur teesri baat sunke chaunk jaoge"). 2-3 jagah utsukta chhodo jo baad mein poori ho. Har 15-20 second mein kuch naya: mod, tathya, mazaak ya jagah badle. Sabse bada surprise doosre aadhe mein rakho. Lines chhoti (max 2 vakya).\nLAMBAI (zaroori): video ${mins} ki honi chahiye — lagbhag ${nl} lines aur kul lagbhag ${WORDS} bole jaane wale shabd. Jaldi khatam mat karo; baatein kam padein to ek asli udaharan, chhoti kahani ya "kya aap jaante ho" wala tathya jodo.`;
+    // Writing standard (owner: scripts felt generic / AI-like) — every line must earn its place
+    const STD_HI = `\nLIKHNE KA STANDARD (sabse zaroori): har line ek NAYI, khaas aur kaam ki baat de ya kahani aage badhaye — koi baat dohrao mat. Aam gol-mol baaton ki jagah khaas cheez: sahi number, asli zindagi ka udaharan, saaf step, aam galti aur sach. Aise likho jaise log asli mein bolte hain — chhote vakya, "aap" se seedhi baat, Hindi-English mix. Ye shabd/vakya BILKUL nahi: "aaiye jaante hain", "dosto", "is video mein", "bahut zaroori hai", "jaisa ki hum sab jaante hain", "aakhir mein" — aur koi bhi bharti ki line jo kuch naya na bataye. Tathya pakke na hon to number/naam mat banao, baat aam rakho.`;
+    const STD_EN = `\nWRITING STANDARD (most important): every line must add a NEW, specific, useful point or move the story — never repeat a point. Replace vague statements with specifics: exact numbers, real-life examples, clear steps, a common mistake and the truth. Sound like a real person talking — short sentences, "you", contractions. Never use filler like "in this video", "let's dive in", "it's important to note", "as we all know", "in conclusion". If a fact is uncertain, don't invent numbers or names — say it more generally.`;
+    const FUN_HI = fun ? null : `MANORANJAN: video seedhi, dilchasp aur kaam ki ho — zabardasti ke chutkule, shayari ya daant mat daalo. Ek-aadh halki muskaan wali baat tabhi jab apne aap fit ho (mood "funny"). Jahan kanoon, khatra ya kisi ki takleef ki baat ho wahan mood "serious". Baaki "normal". `;
+    const FUN_EN = fun ? null : `ENTERTAINMENT: keep it engaging through curiosity, surprise and real examples — no forced jokes, rhymes or scolding. At most one light, natural funny moment if it truly fits (mood "funny"). Serious beats where respect is needed (mood "serious"); everything else "normal". Humor never targets a religion, culture, country, gender or any group.`;
+    const legalEnd = (g ? "" : " Agar vishay kanoon/police/court se juda hai tabhi aakhir mein ek chhoti line: \"ye kanooni salah nahi, apne case ke liye vakil se milein\" — warna kanoon wali line mat daalo.");
     // What foreign viewers enjoy about India (owner asked: make what they like)
     const G_LIKE = `\nWHAT FOREIGN VIEWERS LOVE about India content — use the angle that fits the topic: (1) "first time" experiences seen through ${nA}'s eyes (street food, trains, a wedding, a festival, bargaining, a crowded market) with honest, funny reactions; (2) culture shock explained with respect — why Indians do X (head wobble, eating with hands, "adjust", joint families) — ending in "oh, that actually makes sense"; (3) myth vs fact — gently correcting common stereotypes with real facts; (4) mind-blowing scale and clever systems (Indian Railways, UPI payments, Mumbai dabbawalas, Kumbh Mela, festivals) — only well-established facts; (5) history, architecture and mysteries told as a story; (6) food explained — taste, how it's made, regional differences. Tone: warm, curious, positive, never poverty-tourism or mocking. ${nA} voices the viewer's doubts ("wait, isn't that…?"). Concrete sensory details (sounds, smells, colours). One clear takeaway viewers can repeat to a friend. Titles: specific and curiosity-driven but true (e.g. "Why Indians Eat With Their Hands (It's Not What You Think)").`;
     const CARTOON = `YouTube cartoon video ki script banani hai — do original cartoon kirdaar aapas mein baat karte hain (Hindi, aam logon ke liye). Vishay:\n${topic}${GEN}\n\n` +
       `Kirdaar: A = "${nA}" — aam aadmi, darshak ki tarah sawaal puchta hai, kabhi confuse hota hai, halka mazaak karta hai. B = "${nB}" — samajhdaar bade, dheeraj se aasaan misaal dekar samjhate hain. B vakil NAHI hai — jaankari deta hai, salah nahi; zaroorat pe kehta hai "apne case ke liye vakil se milna".\n` +
       `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
-      `Lagbhag ${nl} lines, A aur B baari-baari (kabhi ek hi kirdaar 2 line bhi). Shuru: A ek aam zindagi ki pareshani/sawaal se (pehli line 3 second mein dhyaan khinche). B ki pehli line mein chhota sa: "dekho, ye sirf jaankari hai, kanooni salah nahi". Beech mein: seedha jawab, kanoon/court kya kehta hai (judgment diya ho to naam-saal), kya karein — steps. A beech-beech mein sawaal/shaq kare taaki baat asli lage. Aakhir: B saar + "apne case ke liye vakil se milna, nateeje ki guarantee koi nahi de sakta"; A darshakon se: "aapke saath aisa hua hai? comment mein batao, aur like-subscribe kar do". ` +
+      `Lagbhag ${nl} lines, A aur B baari-baari (kabhi ek hi kirdaar 2 line bhi). Shuru: A ek aam zindagi ki pareshani/sawaal se (pehli line 3 second mein dhyaan khinche) — disclaimer ya intro se shuru mat karo. Beech mein: seedha jawab, asli baat kya hai (kanoon ka vishay ho to court/kanoon kya kehta hai; judgment diya ho to naam-saal), kya karein — saaf steps. A beech-beech mein wahi sawaal/shaq kare jo darshak ke man mein ho. Aakhir: B ek line mein saar.${legalEnd} A darshakon se ek sawaal jis par log comment karein. ` +
       `Mazaak halka aur saaf ho — peedit, jaati, dharm, aurat/aadmi ya kisi samuday pe mazaak nahi. Kitaabi ya ratti hui bhasha nahi. ` + BOL +
       `MANCH: top-level "cast":{"A":"(${DRS_LIST})","B":"(wahi list)"} do — is kahani mein kaun kya bana hai (jaise ek garib dukaandaar, doosra police wala; "none" = roz ke kapde). Har line ka "scene" chuno ki baat kahan ho rahi hai; kai line ek hi jagah rakho, kahani aage badhe tabhi badlo. Vakil/police ki dress mein bhi kirdaar sirf aam jaankari dete hain, kanooni salah nahi. ` +
-      `MANORANJAN (bahut zaroori — seedha-saadha jawab nahi, sunne wale ko maza aaye): 2-3 jagah halka saaf chutkula ya mazedaar baat jo vishay se judi ho (mood "funny"); ` +
+      (FUN_HI || `MANORANJAN (bahut zaroori — seedha-saadha jawab nahi, sunne wale ko maza aaye): 2-3 jagah halka saaf chutkula ya mazedaar baat jo vishay se judi ho (mood "funny"); ` +
       `ek chhoti APNI banayi 2 line ki shayari, jaise ${nB} kisi baat ko sher mein samjhaye (mood "shayari"; kisi mashhoor shayar/gaane ki line nahi); ` +
       `ek jagah ${nB} ${nA} ko pyaar se daant lagaye jab wo koi galat/bewakoofi wali baat kare (mood "daant", jaise "arre buddhu!" — apmaan nahi); ` +
-      `jahan kanoon, khatra ya kisi ki takleef ki baat ho wahan 1-3 line gambhir (mood "serious") — wahan mazaak bilkul nahi. Baaki "normal". Mood ooper-neeche hota rahe. Apradh ya peedit ki takleef pe kabhi mazaak nahi. ` + RULES;
+      `jahan kanoon, khatra ya kisi ki takleef ki baat ho wahan 1-3 line gambhir (mood "serious") — wahan mazaak bilkul nahi. Baaki "normal". Mood ooper-neeche hota rahe. `) + `Apradh ya peedit ki takleef pe kabhi mazaak nahi. ` + STD_HI + "\n" + RULES;
     const LINE_JSON = `{"who":"A | B | N","text":"(1-2 chhote bolchaal ke vakya)","key":"(board/label ke liye 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","dressA":"(SIRF jab is line se A ki dress badle: ${DRS_LIST}; warna ye field mat do)","dressB":"(waise hi B ke liye)","photo":"(khaali chhodo)"}`;
     const KAHANI = () => `YouTube ke liye ek CARTOON KAHANI (short film) likho — lagbhag ${mins}, Hindi, aam logon ke liye. Vishay / kahani ka idea:\n${topic}${GEN}\n\n` +
       `Kirdaar: A = "${nA}" (aam aadmi — bhola, jaldi bharosa kar leta hai, galti karta hai, mazaakiya), B = "${nB}" (samajhdaar, kanoon ki AAM jaankari rakhta hai, vakil NAHI), N = narrator (kahani sunane wala — scene badalne aur kahani aage badhane ke liye chhote vakya; har 3-6 line mein ek se zyada nahi). Kahani ke baaki log (thag, dukaandaar, police wala, padosi, afsar) A ya B hi dress badal kar nibhate hain ("dressA"/"dressB"), ya narrator unki baat bata deta hai.\n` +
-      `KAHANI KA FORMULA (pakka pakdo): 1) HOOK — pehli 5 second mein musibat ya chaunkane wala pal. 2) Shuruaat — kaun, kahan, kya chahta hai. 3) Musibat — koi thag/dabang fayda uthata hai ya A galti karta hai (mazaak bhi). 4) Kahani ke 25%, 50% aur 75% par ek naya mod/twist. 5) Insaaf sirf KANOONI raaste se (thana, FIR, helpline, consumer forum, court) — B sahi aam jaankari deta hai. 6) Ant — ${nB} ki chhoti APNI 2-line shayari + seekh + darshak se sawaal ("aapke saath aisa hua hai? comment mein batao") + agli kahani ka chhota ishara. ` +
-      `Kahani 30-60 second ke hisson mein aage badhe; har hisse mein jagah (scene) ya mood badle; safar ho to car/bike/walk/cycle scene bhi use karo (agar list mein hon). ${nB} ki ek pehchaan wali line 2-3 baar aaye (jaise "Arre buddhu!"). Kahani kaalpanik ho — kisi asli vyakti/ghatna/company ka naam nahi. Apradh, thagi ya police se bachne ki tareef KABHI nahi; galat kaam ka nateeja dikhao. B ki pehli line mein chhota sa: "ye kahani sirf jaankari ke liye hai, kanooni salah nahi".\n` +
-      `Mazaak (2-3 jagah, mood "funny"), ek jagah pyaar bhari daant (mood "daant"), takleef/kanoon ki baat par gambhir (mood "serious"), ant mein shayari (mood "shayari"). Mood ooper-neeche hota rahe. ` + BOL +
+      `KAHANI KA FORMULA (pakka pakdo): 1) HOOK — pehli 5 second mein musibat ya chaunkane wala pal. 2) Shuruaat — kaun, kahan, kya chahta hai. 3) Musibat — koi thag/dabang fayda uthata hai ya A galti karta hai (mazaak bhi). 4) Kahani ke 25%, 50% aur 75% par ek naya mod/twist. 5) Insaaf sirf KANOONI raaste se (thana, FIR, helpline, consumer forum, court) — B sahi aam jaankari deta hai. 6) Ant — ${fun ? nB + " ki chhoti APNI 2-line shayari + " : ""}seekh + darshak se sawaal ("aapke saath aisa hua hai? comment mein batao") + agli kahani ka chhota ishara. ` +
+      `Kahani 30-60 second ke hisson mein aage badhe; har hisse mein jagah (scene) ya mood badle; safar ho to car/bike/walk/cycle scene bhi use karo (agar list mein hon). ${fun ? nB + ' ki ek pehchaan wali line 2-3 baar aaye (jaise "Arre buddhu!"). ' : ""}Kahani kaalpanik ho — kisi asli vyakti/ghatna/company ka naam nahi. Apradh, thagi ya police se bachne ki tareef KABHI nahi; galat kaam ka nateeja dikhao. Disclaimer se shuru mat karo.${legalEnd}\n` +
+      (FUN_HI || `Mazaak (2-3 jagah, mood "funny"), ek jagah pyaar bhari daant (mood "daant"), takleef/kanoon ki baat par gambhir (mood "serious"), ant mein shayari (mood "shayari"). Mood ooper-neeche hota rahe. `) + BOL + STD_HI + "\n" +
       `Sirf JSON do:\n{${HEAD},"cast":{"A":"(${DRS_LIST})","B":"(wahi list)"},"lines":[${LINE_JSON}]}\nLagbhag ${nl} lines. ` + RULES;
     const KAHANI_G = () => `Write an animated SHORT FILM script (about ${mins}) for an international audience. Characters: A = "${nA}" (curious traveler from abroad, makes funny mistakes), B = "${nB}" (warm, witty Indian friend who knows things), N = narrator (short storyteller lines that move the story or change scene; at most one every 3-6 lines). Other roles (shopkeeper, auto driver, police officer, aunty) are played by A or B via a costume change ("dressA"/"dressB") or described by the narrator.\n` +
       `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nStory idea: ${topic}${GEN}\n` +
-      `FORMULA: hook within 5 seconds; setup (who/where/what they want); a problem (culture shock or a mistake, with humor); a new twist at 25%, 50% and 75%; resolution where B explains with accurate, well-established facts; ending: B's short ORIGINAL two-line rhyme + the lesson + a question to viewers + a tease of the next episode of the "${nA} in India" series. Move in 30-60 second mini-arcs; change scene or mood each arc; use travel scenes (car/bike/walk/cycle) when they travel, if available. ` +
-      `Natural spoken English, contractions, real reactions; 2-3 clean jokes ("funny"), one playful scolding ("daant"), serious beats where respect is needed ("serious"), the closing rhyme ("shayari"). Respect every culture and religion — explain, never mock; no stereotypes; never invent numbers, dates, names or quotes; fictional story, no real private people or companies.\n` +
+      `FORMULA: hook within 5 seconds; setup (who/where/what they want); a problem (culture shock or a mistake, with humor); a new twist at 25%, 50% and 75%; resolution where B explains with accurate, well-established facts; ending: ${fun ? "B's short ORIGINAL two-line rhyme + " : ""}the lesson + a question to viewers + a tease of the next episode of the "${nA} in India" series. Move in 30-60 second mini-arcs; change scene or mood each arc; use travel scenes (car/bike/walk/cycle) when they travel, if available. ` +
+      `Natural spoken English, contractions, real reactions; ${fun ? '2-3 clean jokes ("funny"), one playful scolding ("daant"), serious beats where respect is needed ("serious"), the closing rhyme ("shayari")' : FUN_EN}${STD_EN} Respect every culture and religion — explain, never mock; no stereotypes; never invent numbers, dates, names or quotes; fictional story, no real private people or companies.\n` +
       `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","cast":{"A":"(${DRS_LIST})","B":"(same list)"},"lines":[${LINE_JSON.replace("1-2 chhote bolchaal ke vakya", "1-2 short spoken sentences").replace("board/label ke liye 2-5 shabd", "2-5 words for the label").replace("SIRF jab is line se A ki dress badle", "ONLY when A changes costume from this line").replace("warna ye field mat do", "otherwise omit").replace("waise hi B ke liye", "same for B").replace("khaali chhodo", "leave empty")}]}\nAbout ${nl} lines.`;
+    const nDoc = { short: 6, mid: 14, long: 26 }[len];
+    const DOC_SLIDE_HI = `{"heading":"(screen ke upar chhota tag, 2-5 shabd)","points":["(1-2 keyword, har ek 2-4 shabd)"],"narration":"(is hisse mein bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "2-3"} chhote vakya)","photo":"(1-4 English shabd: is hisse ke liye ASLI photo ki khoj, jaise 'Taj Mahal sunrise', 'Indian police station', 'Indian rupee notes', 'Delhi metro train'; jab tak cheez na badle wahi shabd; kisi vyakti ka naam KABHI nahi)"}`;
+    const DOC_HI = `YouTube ke liye ek documentary-style video ki script banani hai — ek hi awaaz bolti hai aur peeche us baat ki asli photos chalti hain (Hindi, aam logon ke liye). Vishay:\n${topic}\n\n` +
+      `Sirf JSON do, aur kuch nahi:\n{${HEAD},"slides":[${DOC_SLIDE_HI}]}\n` +
+      `Theek ${nDoc} slides, kul lagbhag ${WORDS} bole jaane wale shabd${len === "short" ? " (40 second se kam)" : ""}. Har slide ek alag photo/drishya hai — isliye har slide mein ek nayi cheez dikhe aur bole.\n` +
+      `DHAANCHA: 1) pehli slide = jhatka — chaunkane wala sach, bada sawaal ya aam zindagi ki situation (namaste, intro ya disclaimer BILKUL nahi). 2) pehle 15 second mein vaada ki aage kya milega. 3) beech mein asli baat: tathya, udaharan, kya karein — steps; har 3-4 slide par ek naya mod ya "kya aap jaante ho". 4) aakhri slide: ek line mein saar + darshak se sawaal ("aapke saath aisa hua hai? comment mein batao").${legalEnd}\n` +
+      `LEHJA: narration aise jaise ek insaan camera ke saamne dost se baat kar raha ho — "dekhiye", "ab socho" jaise shabd, chhote vakya, aap se baat. Screen ke points narration ko dohraayein nahi — sirf 2-4 shabd ke keyword. Koi guarantee ("pakka milega", "case jeet jaoge") nahi. ` + STD_HI + "\n" + RULES + LANG;
+    const DOC_EN = () => `Write a script for a documentary-style YouTube video for an international audience: one narrator voice over REAL photos of what is being said. Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nTopic: ${topic}\n\n` +
+      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","slides":[{"heading":"(2-5 word on-screen tag)","points":["(1-2 keywords, 2-4 words each)"],"narration":"(${len === "short" ? "1-2" : "2-3"} short spoken sentences)","photo":"(1-4 word English search for a REAL photo of this part, e.g. 'Taj Mahal sunrise', 'Mumbai dabbawala', 'Indian railway station'; reuse the words while the subject stays the same; never a person's name)"}]}\n` +
+      `Exactly ${nDoc} slides, about ${WORDS} spoken words in total${len === "short" ? " (under 40 seconds)" : ""}. Each slide is a new picture, so each one shows and says something new.\n` +
+      `STRUCTURE: slide 1 = the hook in under 8 words (surprising fact or question; never a greeting or intro). Promise the payoff in the first 15 seconds. Middle: facts, a real example or mini-story, myth vs truth; a twist or "did you know" every 3-4 slides. Last slide: one-line recap + a question viewers will answer in the comments.\n` +
+      `Accuracy and respect (strict): only well-established facts; never invent numbers, dates, names or quotes. Respect every culture and religion; no stereotypes. No guarantees or personal advice.` + STD_EN + G_LIKE;
+    $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> 🔎 Pehle Google se pakke tathya dhundh raha hoon…';
+    const found = await research((q || "") + (facts ? "\n" + facts.slice(0, 600) : ""), g);
+    const FACTS = found ? (g ? `\n\nVERIFIED FACTS from Google Search (build the script on these; don't invent other numbers, names or dates):\n${found}` : `\n\nPAKKE TATHYA (Google search se — script inhi par bane; inke bahar naye number, naam, saal ya dhara mat banao):\n${found}`) : "";
     $("#vmsg").innerHTML = '<span class="dots"><i></i><i></i><i></i></span> Script ban rahi hai…';
     try {
-      const reqContents = [{ role: "user", parts: [{ text: isK ? (g ? KAHANI_G() : KAHANI()) : g ? globalPrompt(topic + GEN, nA, nB, cat, fmt, nl) : (style === "cartoon" ? CARTOON :
-        `YouTube video banana hai (Hindi, aam logon ke liye, aasaan bhasha). Vishay:\n${topic}\n\n` +
-        `Sirf JSON do, aur kuch nahi:\n{"title":"(60 akshar tak, Hindi+English mix chalega)","description":"(3-5 line + aakhir mein: '⚠️ Ye video sirf jaankari ke liye hai, kanooni salah nahi. Kisi nateeje ki guarantee nahi — apne case ke liye vakil se salah lein.')","tags":["..."],"thumbnail_text":"(4-6 shabd, bada asar)",` +
-        `"slides":[{"emoji":"(1 emoji jo slide ko dikhaye)","heading":"(chhota, Hindi)","points":["(3 keyword, har ek 2-5 shabd)"],"narration":"(is slide pe bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "4-6"} vakya)"}]}\n` +
-        `Theek ${n} slides. Dhaancha: 1) pehli slide sawaal se shuru (dhyaan khinche) aur uski narration ke ant mein ek chhoti line: "ye video sirf jaankari ke liye hai", 2) seedha jawab, 3) court/kanoon kya kehta hai (judgment diya ho to uska naam-saal), 4) aap kya karein — steps, aakhri: saar + 'ye kanooni salah nahi, sirf jaankari hai — kisi nateeje ki guarantee nahi; apne case ke liye vakil se milein' + 'achhi lagi to like aur subscribe'. LEHJA (sabse zaroori — video AI jaisi nahi lagni chahiye): narration aise likho jaise ek insaan camera ke saamne dost se baat kar raha ho — "dekhiye", "ab socho", "yahan dhyaan dena" jaise shabd, chhote vakya, aap/aapke se baat, ek-do sawaal darshak se. Pehli slide ki pehli line 3 second mein dhyaan khinche (ek aam zindagi ki situation: "maan lijiye raat ko police aapke ghar aati hai…" — kisi asli vyakti ka naam nahi). Rataa-rataaya ya kitaabi bhasha nahi, "is video mein hum jaanenge" jaisi ghisi-piti line nahi. Screen ke points narration ko dohraayein nahi — sirf 2-5 shabd ke keyword. Aakhri slide mein darshak se ek sawaal: "aapke saath aisa hua hai? comment mein batao". Video mein kahin bhi "pakka paisa wapas milega" ya "case jeet jaoge" jaisi guarantee mat do. ` +
-        `KADE NIYAM: rape/yaun shoshan/POCSO/juvenile case mein peedit ya bachche ka naam ya pehchaan KABHI nahi; judge ya court ki niyat pe ilzaam nahi; chalte case mein kisi ko doshi mat kaho; aam logon (parties) ke naam ki jagah 'A aur B' ya 'pati/patni'; ` +
-        `sirf wahi tathya jo diye gaye hain ya pakke aam kanooni gyaan ke hain — case naam, dhara ya saal apni taraf se mat banao (pakka na ho to dhara ka zikr mat karo); vakil ka prachaar/phone number nahi.`) + LANG }] }];
-      if (style === "cartoon" || isK || g) reqContents[0].parts[0].text += g ? G_LIKE + KEEP_EN : KEEP_HI;
+      const reqContents = [{ role: "user", parts: [{ text: isK ? (g ? KAHANI_G() : KAHANI()) : g && style === "slides" ? DOC_EN() : g ? globalPrompt(topic + GEN, nA, nB, cat, fmt, nl, FUN_EN, STD_EN) : (style === "cartoon" ? CARTOON : DOC_HI) + LANG }] }];
+      if (style === "cartoon" || isK) reqContents[0].parts[0].text += g ? G_LIKE + KEEP_EN : KEEP_HI;
+      reqContents[0].parts[0].text += FACTS;
       if (autoHint) reqContents[0].parts[0].text += autoHint;
       const SYS = g ? "You are a top YouTube script writer for animated explainer videos. You return only valid JSON." : "Tum ek YouTube script writer ho. Sirf valid JSON lautate ho.";
       const r = await G.ask(reqContents, { system: SYS, web: false, json: true, onPart: () => {}, onStatus: t => { $("#vmsg").textContent = t; } });
@@ -560,14 +592,18 @@ const Video = (() => {
         plan.cast = { A: okD((plan.cast || {}).A), B: okD((plan.cast || {}).B) };
         plan.style = "cartoon"; plan.kahani = isK; plan.actors = actors; plan.names = { A: nA, B: nB, N: g ? "Narrator" : "Kahanikaar" };
       }
+      if (style === "slides" && plan.style !== "cartoon" && (!Array.isArray(plan.slides) || !plan.slides.length) && Array.isArray(plan.lines)) // AI wrote dialogue lines: use them as narration
+        plan.slides = plan.lines.filter(l => l && l.text).map(l => ({ heading: l.key || "", points: [], narration: l.text, photo: l.photo || "" }));
       if (!Array.isArray(plan.slides) || !plan.slides.length) throw new Error("script nahi mili — dobara dabao");
+      if (plan.style !== "cartoon") { plan.style = "slides"; plan.slides = plan.slides.map(x => ({ heading: String(x.heading || ""), emoji: "", points: (Array.isArray(x.points) ? x.points : []).map(String).slice(0, 3), narration: String(x.narration || x.text || ""), photoQ: String(typeof x.photo === "string" ? x.photo : x.photoQ || "").trim().slice(0, 60), photo: null })).filter(x => x.narration); }
+      plan.legal = g ? false : plan.legal !== false;
       plan.short = len === "short"; plan.lang = g ? "en" : "hi"; plan.mode = mode; plan.cat = cat; plan.fmt = fmt;
       Object.keys(voices).forEach(k => delete voices[k]);
       Object.keys(photos).forEach(k => delete photos[k]);
       $("#vmsg").textContent = (plan.cut ? "⚠️ Script thodi chhoti aayi (AI ne beech mein rok di) — " : "✅ ") + "Script taiyaar" + (g ? ` (format: ${{ qa: "sawaal-jawaab", myth: "myth vs fact", top: "top 5", story: "kahani" }[fmt] || "Hindi lesson"})` : "") + " — neeche padh ke sudhaar sakte ho";
       savePlan();
       drawEditor();
-      photosP = plan.style === "cartoon" ? Promise.resolve(findPhotos()).catch(() => {}) : Promise.resolve();
+      photosP = Promise.resolve(findPhotos()).catch(() => {});
       return true;
     } catch (e) { $("#vmsg").innerHTML = "❌ " + esc(e.message || "Script nahi bani — dobara try karo") + (e.tries && e.tries.length ? `<br><span class="muted" style="font-size:11px">${esc(e.tries.join(" · "))}</span>` : ""); return false; }
   }
@@ -592,7 +628,7 @@ const Video = (() => {
         <label class="field">Heading<input data-h="${i}" value="${esc(s.heading || "")}"></label>
         <label class="field">Points (har line ek point)<textarea data-p="${i}" rows="3">${esc((s.points || []).join("\n"))}</textarea></label>
         <label class="field">🔊 Bolna hai<textarea data-n="${i}" rows="3">${esc(s.narration || "")}</textarea></label>
-        <div class="row"><button class="btn" data-pic="${i}">📷 ${photos[i] ? "Photo badlo" : "Apni photo lagao"}</button>${photos[i] ? `<button class="btn" data-unpic="${i}">✕ Photo hatao</button>` : ""}</div>
+        <div class="row small" data-phrow="${i}">${photoRow(s, i)}</div>
         <div class="row"><button class="btn" data-rec="${i}">🎙️ Apni awaaz record karo</button><span class="small" data-rs="${i}">${voices[i] ? "✅ Aapki awaaz (" + voices[i].dur.toFixed(0) + " sec) <button class='btn' data-play='" + i + "'>▶️</button>" : "Record nahi kiya to phone ki Indian awaaz"}</span></div></div>`).join("")}
       <div class="card">${p.style === "cartoon" ? `
         ${PHONE_OK() ? `<label class="field">🔊 Awaaz kahan se<select id="veng"><option value="ai" ${engine() === "ai" ? "selected" : ""}>🤖 Google AI — insaan jaisi, par roz ki free limit</option><option value="phone" ${engine() === "phone" ? "selected" : ""}>📱 Phone ki awaaz — free, koi limit nahi</option></select></label>
@@ -608,12 +644,12 @@ const Video = (() => {
         <label class="field">Awaaz (jo slide aapne record nahi ki)<select id="vvoice">
           ${AI_VOICES.map(([k, t]) => `<option value="ai:${k}" ${S.get("vVoice", "ai:Charon") === "ai:" + k ? "selected" : ""}>🤖 AI insaan jaisi — ${t}</option>`).join("")}
           <option value="phone" ${S.get("vVoice", "") === "phone" ? "selected" : ""}>📱 Phone ki Indian awaaz</option></select></label>`}
-        ${p.style === "cartoon" ? `<div class="row"><button class="btn" id="vphotos">🖼️ Topic ki photos dhundho</button><label class="row small"><input type="checkbox" id="vphon" ${p.noPhotos ? "" : "checked"}> Peeche photo dikhao</label></div><div class="small muted">Photos Wikimedia Commons se (free license) — credit description mein apne aap judta hai.</div>` : ""}
+        <div class="row"><button class="btn" id="vphotos">🖼️ Topic ki photos dhundho</button><label class="row small"><input type="checkbox" id="vphon" ${p.noPhotos ? "" : "checked"}> Peeche photo dikhao</label></div><div class="small muted">Photos Wikimedia Commons se (free license) — credit description mein apne aap judta hai. Pasand na aaye to har line pe 🔄 Doosri ya 📷 Apni.</div>
         <button class="btn${p.style === "cartoon" ? " primary" : ""}" id="vtest">${p.style === "cartoon" ? "▶️ Pehle namoona dekho-suno (shuru ki 3 line)" : "▶️ Awaaz suno"}</button>
         ${p.style === "cartoon" ? `<label class="row small"><input type="checkbox" id="v3d" ${S.get("vLook3d", true) ? "checked" : ""}> ✨ 3D jaisa look (roshni-chhaaya, chamakti aankhein)</label>` : ""}
         <label class="row small"><input type="checkbox" id="vlow" ${S.get("vLow", (navigator.deviceMemory || 8) <= 4) ? "checked" : ""}> 📉 Halki quality (purana/kam RAM phone, ya app blank ho jaye to)</label>
         <label class="field">🎵 Peeche music (app khud banata hai, copyright-free)<select id="vmusic">${Object.entries(MUSIC).map(([k, v]) => `<option value="${k}" ${musicStyle() === k ? "selected" : ""}>${v[0]}</option>`).join("")}</select></label>
-        ${p.style === "cartoon" ? "" : `<div class="banner small">💡 Video insaan jaisi lage, iske liye: 1) har slide pe <b>apni awaaz</b> record karo (sabse bada fark), 2) <b>apni kheenchi photo</b> lagao (court, thana, kagaz, apna haath — kisi ka chehra nahi), 3) script ko apne shabdon mein thoda badlo.</div>`}
+        ${p.style === "cartoon" ? "" : `<div class="banner small">💡 Aur behtar banane ke liye: 1) har slide pe <b>apni awaaz</b> record karo (sabse bada fark), 2) jo photo theek na lage use 🔄 Doosri ya <b>📷 Apni</b> se badlo (kisi ka chehra nahi), 3) script ko apne shabdon mein thoda badlo.</div>`}
         <button class="btn" id="vcheck" style="margin-top:8px">🔍 AI se script jaanchwao</button>
         <div id="vcres" class="small"></div>
         <div class="small" style="margin-top:8px">
@@ -660,12 +696,10 @@ const Video = (() => {
         });
       }
     }
-    if (p.style === "cartoon") {
-      $("#vtest").onclick = preview;
-      $("#vphotos").onclick = () => findPhotos(true);
-      $("#vphon").onchange = e => { plan.noPhotos = !e.target.checked; };
-      bindPhotoRows();
-    }
+    $("#vphotos").onclick = () => findPhotos(true);
+    $("#vphon").onchange = e => { plan.noPhotos = !e.target.checked; };
+    bindPhotoRows();
+    if (p.style === "cartoon") $("#vtest").onclick = preview;
     else $("#vtest").onclick = async () => {
       const v = $("#vvoice").value, t = (plan.slides[0] && plan.slides[0].narration) || "नमस्ते! आज हम एक ज़रूरी कानूनी सवाल समझेंगे।";
       try {
@@ -879,25 +913,27 @@ const Video = (() => {
     // word-by-word highlight, like popular Shorts captions
     const per = w < h ? 4 : 6, cur = Math.min(words.length - 1, Math.floor(Math.min(1, prog * 1.12) * words.length));
     const k = Math.floor(cur / per), part = words.slice(k * per, k * per + per);
-    ctx.font = `bold ${(w < h ? 40 : 32) * sc}px ${F}`; ctx.textAlign = "left";
+    const fs = (w < h ? 48 : 38) * sc;
+    ctx.font = `bold ${fs}px ${F}`; ctx.textAlign = "left";
     const sp = ctx.measureText(" ").width, ws = part.map(x => ctx.measureText(x).width);
     const lw = ws.reduce((a, b) => a + b, 0) + sp * (part.length - 1);
-    const y = yAt || (w < h ? h * 0.72 : h - 70 * sc), tw = Math.min(w - 30 * sc, lw + 40 * sc);
-    ctx.fillStyle = "rgba(0,0,0,.6)"; ctx.fillRect((w - tw) / 2, y - 40 * sc, tw, 56 * sc);
+    const y = yAt || (w < h ? h * 0.74 : h - 64 * sc), tw = Math.min(w - 30 * sc, lw + 48 * sc);
+    ctx.fillStyle = "rgba(0,0,0,.62)"; rr(ctx, (w - tw) / 2, y - fs * 1.05, tw, fs * 1.45, 14 * sc); ctx.fill();
     let x = (w - lw) / 2;
     part.forEach((p, j) => { ctx.fillStyle = k * per + j === cur ? (color || "#ffd166") : "#fff"; ctx.fillText(p, x, y); x += ws[j] + sp; });
   }
+  // documentary look: the slide's own photo (or the topic photo), slow pan, soft crossfade from the last one
+  const docPhoto = i => { const o = photos[i]; if (o && o.naturalWidth) return o; const p = photoAt(i); return p && p.naturalWidth ? p : null; };
   function frame(ctx, w, h, kind, s, prog, idx, total, channel, tsec) {
     const sc = Math.min(w, h) / 720, F = "'Noto Sans Devanagari','Noto Sans',sans-serif";
-    bg(ctx, w, h, 215 + idx * 17, tsec);
-    const ph = kind === "slide" ? photos[idx] : (kind === "title" ? photos[0] : null);
-    if (ph && ph.naturalWidth) { // slow zoom/pan over the owner's photo, darkened so text stays readable
-      const z = 1.05 + 0.08 * prog, r = Math.max(w / ph.naturalWidth, h / ph.naturalHeight) * z;
-      const dw = ph.naturalWidth * r, dh = ph.naturalHeight * r;
-      ctx.drawImage(ph, (w - dw) / 2 - (idx % 2 ? 1 : -1) * 20 * prog, (h - dh) / 2, dw, dh);
-      const gr = ctx.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, "rgba(0,0,0,.72)"); gr.addColorStop(0.5, "rgba(0,0,0,.45)"); gr.addColorStop(1, "rgba(0,0,0,.75)");
-      ctx.fillStyle = gr; ctx.fillRect(0, 0, w, h);
-    }
+    const ph = kind === "end" ? null : docPhoto(kind === "slide" ? idx : 0);
+    if (ph) {
+      const prev = kind === "slide" && idx > 0 ? docPhoto(idx - 1) : null, a = kind === "slide" ? Math.min(1, prog * 5) : 1;
+      if (prev && prev !== ph && a < 1) { photoBg(ctx, w, h, prev, tsec || 0, idx - 1); ctx.globalAlpha = a; photoBg(ctx, w, h, ph, tsec || 0, idx); ctx.globalAlpha = 1; }
+      else photoBg(ctx, w, h, ph, tsec || 0, idx);
+      if (kind === "title") { ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(0, 0, w, h); }
+    } else bg(ctx, w, h, 215 + idx * 17, tsec);
+    if (kind === "slide" && (ph || !(s.points || []).length || s.emoji === "")) { docSlide(ctx, w, h, s, prog, idx, total, channel, sc, F, !!ph); return; }
     ctx.save(); ctx.globalAlpha = Math.min(1, prog * 6); // fade-in at slide start
     ctx.textAlign = "left"; ctx.fillStyle = "#fff";
     const pad = 60 * sc, maxW = w - pad * 2;
@@ -931,11 +967,27 @@ const Video = (() => {
     ctx.restore();
     overlay(ctx, w, h, channel, sc, F);
   }
+  function docSlide(ctx, w, h, s, prog, idx, total, channel, sc, F, hasPhoto) {
+    ctx.save(); ctx.globalAlpha = Math.min(1, prog * 6);
+    label(ctx, w, h, s.heading || "", "", sc, F);
+    const pts = (s.points || []).filter(Boolean);
+    if (!hasPhoto && pts.length) { // no picture: one big keyword at a time in the middle
+      const k = Math.min(pts.length - 1, Math.floor(prog * pts.length)), v = w < h;
+      ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.font = `bold ${(v ? 64 : 58) * sc}px ${F}`; ctx.shadowColor = "rgba(0,0,0,.5)"; ctx.shadowBlur = 14 * sc;
+      wrap(ctx, pts[k], w / 2, h * (v ? 0.42 : 0.47), w - 120 * sc, (v ? 76 : 68) * sc, 3); ctx.shadowBlur = 0;
+    }
+    ctx.restore(); ctx.save();
+    subtitle(ctx, w, h, s.narration, prog, sc, F);
+    ctx.fillStyle = "rgba(255,255,255,.15)"; ctx.fillRect(0, h - 8 * sc, w, 8 * sc);
+    ctx.fillStyle = "#ffd166"; ctx.fillRect(0, h - 8 * sc, w * ((idx + prog) / total), 8 * sc);
+    ctx.restore();
+    overlay(ctx, w, h, channel, sc, F);
+  }
   function overlay(ctx, w, h, channel, sc, F, dark) {
     if (channel) { ctx.textAlign = "right"; ctx.font = `${22 * sc}px ${F}`; ctx.fillStyle = dark ? "rgba(60,40,20,.75)" : "rgba(255,255,255,.6)"; ctx.fillText(channel, w - 24 * sc, 40 * sc); }
     // always on screen: education only
     ctx.textAlign = "left"; ctx.font = `bold ${18 * sc}px ${F}`;
-    const dl = !EN() ? "📚 सिर्फ शिक्षा/जानकारी के लिए — कानूनी सलाह नहीं" : CAT() === "money" ? "📚 Learning only — not financial advice" : CAT() === "scam" ? "📚 Learning only — not legal or financial advice" : CAT() === "mind" ? "📚 Learning only — not medical advice" : GL() ? "📚 For learning & fun" : "📚 For education only — not legal advice";
+    const dl = !EN() ? (plan && plan.legal === false ? "📚 सिर्फ जानकारी के लिए" : "📚 सिर्फ शिक्षा/जानकारी के लिए — कानूनी सलाह नहीं") : CAT() === "money" ? "📚 Learning only — not financial advice" : CAT() === "scam" ? "📚 Learning only — not legal or financial advice" : CAT() === "mind" ? "📚 Learning only — not medical advice" : GL() ? "📚 For learning & fun" : "📚 For education only — not legal advice";
     const dw = ctx.measureText(dl).width + 20 * sc;
     ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(14 * sc, 14 * sc, dw, 32 * sc);
     ctx.fillStyle = "#ffd166"; ctx.fillText(dl, 24 * sc, 36 * sc);
@@ -1749,7 +1801,7 @@ const Video = (() => {
         const bin = atob(r.b64), arr = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
         bufs.push(await ac.decodeAudioData(arr.buffer));
       }
-      if (cartoon) { say("🖼️ Photos load ho rahi hain…"); await Promise.all(plan.slides.filter(x => x.photo).map(x => loadImg(x.photo.url))); }
+      say("🖼️ Photos load ho rahi hain…"); await Promise.all(plan.slides.filter(x => x.photo && x.photo.url).map(x => loadImg(x.photo.url)));
       const low = !!S.get("vLow", (navigator.deviceMemory || 8) <= 4), fps = low ? 20 : 24;
       const w = plan.short ? (low ? 540 : 720) : (low ? 960 : W), h = plan.short ? (low ? 960 : 1280) : (low ? 540 : H);
       const c = document.createElement("canvas"); c.width = w; c.height = h;
@@ -1758,7 +1810,7 @@ const Video = (() => {
       const stream = new MediaStream([...c.captureStream(fps).getVideoTracks(), ...dest.stream.getAudioTracks()]);
       const mime = ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1,mp4a", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
       if (!mime) throw new Error("Is phone mein video recording nahi chalti");
-      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: low ? 1200000 : 2200000 });
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: low ? 2000000 : 4000000 });
       const ext = mime.startsWith("video/mp4") ? "mp4" : "webm", base = mime.split(";")[0];
       const name = "video-" + ymd() + "-" + Date.now().toString(36).slice(-4) + "." + ext;
       // phone: write each second's piece straight to storage, so the whole video never sits in memory
@@ -1925,5 +1977,5 @@ const Video = (() => {
     autoBusy = false;
   }
 
-  return { autoRun, _draw: drawChar, _pose: poseOf, _music: musicPlayer, _sfx: sfx, render, _frame: frame, _photos: photos, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, extra && extra.endKind ? "end" : "slide", s, extra && extra.prog != null ? extra.prog : 0.5, extra && extra.idx != null ? extra.idx : 2, 8, "Kanoon Aasaan", tsec, m); } };
+  return { autoRun, _draw: drawChar, _pose: poseOf, _music: musicPlayer, _sfx: sfx, render, _frame: frame, _photos: photos, _setPlan: p => { plan = p; }, _imgs: imgs, _cartoon: (ctx, w, h, s, names, tsec, m, extra) => { plan = plan || { title: "" }; plan.names = names; Object.assign(plan, extra || {}); if (extra && extra.img) { imgs["t"] = extra.img; plan.slides = [{ photo: { url: "t" } }]; } return cartoonFrame(ctx, w, h, extra && extra.endKind ? "end" : "slide", s, extra && extra.prog != null ? extra.prog : 0.5, extra && extra.idx != null ? extra.idx : 2, 8, "Kanoon Aasaan", tsec, m); } };
 })();
