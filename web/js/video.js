@@ -397,7 +397,7 @@ Vishay: ${topic}`;
       `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nTopic: ${topic}\n` + (cat === "hindi" ? "" : `Format: ${GFMT[fmt]}\n`) +
       `\nStyle: natural spoken English, short sentences, contractions, light clean humor, real reactions ("wait, what?", "no way!"). The very first line must hook in 3 seconds with a surprising fact or question. Vary rhythm. Never say "in this video we will". No filler, no repeated catchphrases. End: B gives a one-line recap, A asks viewers a question for the comments, then a quick "subscribe for more".\n` +
       `Accuracy and respect (strict): only well-established facts; never invent numbers, dates, names or quotes — if unsure, say it more generally. Respect every culture and religion: explain, never mock; no stereotypes; humor is never at a group's expense. No song lyrics or movie dialogue. No guarantees or personal advice.\n` +
-      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; empty if nothing visual; never a person's name)"}]}\n` +
+      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","lines":[{"who":"A or B","text":"(1-2 short spoken sentences)","key":"(2-5 words for the board)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 word English search for a REAL photo of the place/thing being discussed, e.g. 'Taj Mahal', 'Diwali diya', 'GPS satellite'; reuse the same words while the subject stays the same; ALWAYS fill it — at least the place where the talk happens, e.g. 'Indian street market'; never a person's name)"}]}\n` +
       `About ${nl} lines, mostly alternating (sometimes one speaker says two lines).\n` +
       `STAGE: add top-level "cast":{"A":"(${DRS_LIST})","B":"(same list)"} — costumes for this story (e.g. one plays a shopkeeper, the other a police officer); "none" = their usual clothes. For each line pick "scene" where it happens; keep the same scene for several lines and change only when the story moves. Costumed characters still only share general information, never personal legal/medical/financial advice.\n` +
       (entOverride || `ENTERTAINMENT (very important — it must be fun to watch, not a dry answer): include 2-3 clean jokes or puns that fit the moment (mood "funny"), ` +
@@ -504,24 +504,24 @@ Vishay: ${topic}`;
       ? `\nSHORT KE NIYAM (upar ki har baat se zyada zaroori): ye khadi YouTube Short hai — poori bolne ki lambai 40 SECOND SE KAM (kul lagbhag 80-90 shabd), theek ${nl} lines, har line max 12 shabd. Line 1 = jhatka, 8 shabd se kam: chaunkane wala sach, bada daava ya sawaal (namaste/intro/naam bilkul nahi). Ek hi baat, jaldi jawab. Aakhir mein "subscribe" wali lambi line nahi — ek punchline ya sawaal jis par log comment karein. Narrator sirf zaroorat ho to.`
       : `\nLOG RUKE RAHEIN (bahut zaroori): koi intro/namaste nahi — pehli line seedha sabse dilchasp pal ya sawaal. Pehle 15 second mein vaada karo ki aage kya milega ("aur teesri baat sunke chaunk jaoge"). 2-3 jagah utsukta chhodo jo baad mein poori ho. Har 15-20 second mein kuch naya: mod, tathya, mazaak ya jagah badle. Sabse bada surprise doosre aadhe mein rakho. Lines chhoti (max 2 vakya).\nLAMBAI (zaroori): video ${mins} ki honi chahiye — lagbhag ${nl} lines aur kul lagbhag ${WORDS} bole jaane wale shabd. Jaldi khatam mat karo; baatein kam padein to ek asli udaharan, chhoti kahani ya "kya aap jaante ho" wala tathya jodo.`;
     // Writing standard (owner: scripts felt generic / AI-like) — every line must earn its place
-    const STD_HI = `\nLIKHNE KA STANDARD (sabse zaroori): har line ek NAYI, khaas aur kaam ki baat de ya kahani aage badhaye — koi baat dohrao mat. Aam gol-mol baaton ki jagah khaas cheez: sahi number, asli zindagi ka udaharan, saaf step, aam galti aur sach. Aise likho jaise log asli mein bolte hain — chhote vakya, "aap" se seedhi baat, Hindi-English mix. Ye shabd/vakya BILKUL nahi: "aaiye jaante hain", "dosto", "is video mein", "bahut zaroori hai", "jaisa ki hum sab jaante hain", "aakhir mein" — aur koi bhi bharti ki line jo kuch naya na bataye. Tathya pakke na hon to number/naam mat banao, baat aam rakho.`;
-    const STD_EN = `\nWRITING STANDARD (most important): every line must add a NEW, specific, useful point or move the story — never repeat a point. Replace vague statements with specifics: exact numbers, real-life examples, clear steps, a common mistake and the truth. Sound like a real person talking — short sentences, "you", contractions. Never use filler like "in this video", "let's dive in", "it's important to note", "as we all know", "in conclusion". If a fact is uncertain, don't invent numbers or names — say it more generally.`;
+    const STD_HI = `\nLIKHNE KA STANDARD (sabse zaroori): har line ek NAYI, khaas aur kaam ki baat de ya kahani aage badhaye — koi baat dohrao mat. Aam gol-mol baaton ki jagah khaas cheez: sahi number, asli zindagi ka udaharan, saaf step, aam galti aur sach. Aise likho jaise log asli mein bolte hain — chhote vakya, "aap" se seedhi baat, Hindi-English mix. Ye shabd/vakya BILKUL nahi: "aaiye jaante hain", "dosto", "is video mein", "bahut zaroori hai", "jaisa ki hum sab jaante hain", "aakhir mein" — aur koi bhi bharti ki line jo kuch naya na bataye. Tathya pakke na hon to number/naam mat banao, baat aam rakho. "Ye sirf jaankari hai", "kanooni salah nahi", "disclaimer" jaisi line video ki script mein KABHI mat likho — wo description mein apne aap hai.`;
+    const STD_EN = `\nWRITING STANDARD (most important): every line must add a NEW, specific, useful point or move the story — never repeat a point. Replace vague statements with specifics: exact numbers, real-life examples, clear steps, a common mistake and the truth. Sound like a real person talking — short sentences, "you", contractions. Never use filler like "in this video", "let's dive in", "it's important to note", "as we all know", "in conclusion". If a fact is uncertain, don't invent numbers or names — say it more generally. Never put a disclaimer line ("for education only", "not advice") in the spoken script — the description has it.`;
     const FUN_HI = fun ? null : `MANORANJAN: video seedhi, dilchasp aur kaam ki ho — zabardasti ke chutkule, shayari ya daant mat daalo. Ek-aadh halki muskaan wali baat tabhi jab apne aap fit ho (mood "funny"). Jahan kanoon, khatra ya kisi ki takleef ki baat ho wahan mood "serious". Baaki "normal". `;
     const FUN_EN = fun ? null : `ENTERTAINMENT: keep it engaging through curiosity, surprise and real examples — no forced jokes, rhymes or scolding. At most one light, natural funny moment if it truly fits (mood "funny"). Serious beats where respect is needed (mood "serious"); everything else "normal". Humor never targets a religion, culture, country, gender or any group.`;
-    const legalEnd = (g ? "" : " Agar vishay kanoon/police/court se juda hai tabhi aakhir mein ek chhoti line: \"ye kanooni salah nahi, apne case ke liye vakil se milein\" — warna kanoon wali line mat daalo.");
+    const legalEnd = ""; // owner: no "sirf jaankari / kanooni salah nahi" line inside the video — the description carries it
     // What foreign viewers enjoy about India (owner asked: make what they like)
     const G_LIKE = `\nWHAT FOREIGN VIEWERS LOVE about India content — use the angle that fits the topic: (1) "first time" experiences seen through ${nA}'s eyes (street food, trains, a wedding, a festival, bargaining, a crowded market) with honest, funny reactions; (2) culture shock explained with respect — why Indians do X (head wobble, eating with hands, "adjust", joint families) — ending in "oh, that actually makes sense"; (3) myth vs fact — gently correcting common stereotypes with real facts; (4) mind-blowing scale and clever systems (Indian Railways, UPI payments, Mumbai dabbawalas, Kumbh Mela, festivals) — only well-established facts; (5) history, architecture and mysteries told as a story; (6) food explained — taste, how it's made, regional differences. Tone: warm, curious, positive, never poverty-tourism or mocking. ${nA} voices the viewer's doubts ("wait, isn't that…?"). Concrete sensory details (sounds, smells, colours). One clear takeaway viewers can repeat to a friend. Titles: specific and curiosity-driven but true (e.g. "Why Indians Eat With Their Hands (It's Not What You Think)").`;
     const CARTOON = `YouTube cartoon video ki script banani hai — do original cartoon kirdaar aapas mein baat karte hain (Hindi, aam logon ke liye). Vishay:\n${topic}${GEN}\n\n` +
       `Kirdaar: A = "${nA}" — aam aadmi, darshak ki tarah sawaal puchta hai, kabhi confuse hota hai, halka mazaak karta hai. B = "${nB}" — samajhdaar bade, dheeraj se aasaan misaal dekar samjhate hain. B vakil NAHI hai — jaankari deta hai, salah nahi; zaroorat pe kehta hai "apne case ke liye vakil se milna".\n` +
-      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; zaroorat na ho to khaali; kisi vyakti ka naam KABHI nahi)"}]}\n` +
+      `Sirf JSON do:\n{${HEAD},"lines":[{"who":"A ya B","text":"(Devanagari Hindi, 1-2 chhote vakya, asli bol-chaal)","key":"(board pe dikhane ko 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","photo":"(1-4 English shabd: us cheez/jagah ki asli photo ki khoj, jaise 'Supreme Court of India', 'police station India', 'Indian rupee notes'; vishay na badle to wahi shabd dohraao; HAMESHA do — jahan baat ho rahi hai us jagah ki asli photo chalegi, jaise 'Indian road traffic', 'Indian village'; kisi vyakti ka naam KABHI nahi)"}]}\n` +
       `Lagbhag ${nl} lines, A aur B baari-baari (kabhi ek hi kirdaar 2 line bhi). Shuru: A ek aam zindagi ki pareshani/sawaal se (pehli line 3 second mein dhyaan khinche) — disclaimer ya intro se shuru mat karo. Beech mein: seedha jawab, asli baat kya hai (kanoon ka vishay ho to court/kanoon kya kehta hai; judgment diya ho to naam-saal), kya karein — saaf steps. A beech-beech mein wahi sawaal/shaq kare jo darshak ke man mein ho. Aakhir: B ek line mein saar.${legalEnd} A darshakon se ek sawaal jis par log comment karein. ` +
       `Mazaak halka aur saaf ho — peedit, jaati, dharm, aurat/aadmi ya kisi samuday pe mazaak nahi. Kitaabi ya ratti hui bhasha nahi. ` + BOL +
-      `MANCH: top-level "cast":{"A":"(${DRS_LIST})","B":"(wahi list)"} do — is kahani mein kaun kya bana hai (jaise ek garib dukaandaar, doosra police wala; "none" = roz ke kapde). Har line ka "scene" chuno ki baat kahan ho rahi hai; kai line ek hi jagah rakho, kahani aage badhe tabhi badlo. Vakil/police ki dress mein bhi kirdaar sirf aam jaankari dete hain, kanooni salah nahi. ` +
+      `MANCH: top-level "cast":{"A":"(${DRS_LIST})","B":"(wahi list)"} do — is kahani mein kaun kya bana hai (jaise ek garib dukaandaar, doosra police wala; "none" = roz ke kapde). Har line ka "scene" chuno ki baat kahan ho rahi hai; kai line ek hi jagah rakho, kahani aage badhe tabhi badlo. Vishay bike/scooty/helmet/traffic/challan/gaadi chalane se juda ho to zyada-tar lines ka scene "bike" (ya "car") rakho — kirdaar gaadi par hi baat karein. Vakil/police ki dress mein bhi kirdaar sirf aam jaankari dete hain, kanooni salah nahi. ` +
       (FUN_HI || `MANORANJAN (bahut zaroori — seedha-saadha jawab nahi, sunne wale ko maza aaye): 2-3 jagah halka saaf chutkula ya mazedaar baat jo vishay se judi ho (mood "funny"); ` +
       `ek chhoti APNI banayi 2 line ki shayari, jaise ${nB} kisi baat ko sher mein samjhaye (mood "shayari"; kisi mashhoor shayar/gaane ki line nahi); ` +
       `ek jagah ${nB} ${nA} ko pyaar se daant lagaye jab wo koi galat/bewakoofi wali baat kare (mood "daant", jaise "arre buddhu!" — apmaan nahi); ` +
       `jahan kanoon, khatra ya kisi ki takleef ki baat ho wahan 1-3 line gambhir (mood "serious") — wahan mazaak bilkul nahi. Baaki "normal". Mood ooper-neeche hota rahe. `) + `Apradh ya peedit ki takleef pe kabhi mazaak nahi. ` + STD_HI + "\n" + RULES;
-    const LINE_JSON = `{"who":"A | B | N","text":"(1-2 chhote bolchaal ke vakya)","key":"(board/label ke liye 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","dressA":"(SIRF jab is line se A ki dress badle: ${DRS_LIST}; warna ye field mat do)","dressB":"(waise hi B ke liye)","photo":"(khaali chhodo)"}`;
+    const LINE_JSON = `{"who":"A | B | N","text":"(1-2 chhote bolchaal ke vakya)","key":"(board/label ke liye 2-5 shabd)","emoji":"(1 emoji)","mood":"(normal | funny | serious | daant | shayari)","scene":"(${SCN_LIST()})","dressA":"(SIRF jab is line se A ki dress badle: ${DRS_LIST}; warna ye field mat do)","dressB":"(waise hi B ke liye)","photo":"(1-4 English shabd: is line ki jagah/cheez ki ASLI photo ki khoj, jaise 'Indian road traffic', 'police station India'; kisi vyakti ka naam nahi)"}`;
     const KAHANI = () => `YouTube ke liye ek CARTOON KAHANI (short film) likho — lagbhag ${mins}, Hindi, aam logon ke liye. Vishay / kahani ka idea:\n${topic}${GEN}\n\n` +
       `Kirdaar: A = "${nA}" (aam aadmi — bhola, jaldi bharosa kar leta hai, galti karta hai, mazaakiya), B = "${nB}" (samajhdaar, kanoon ki AAM jaankari rakhta hai, vakil NAHI), N = narrator (kahani sunane wala — scene badalne aur kahani aage badhane ke liye chhote vakya; har 3-6 line mein ek se zyada nahi). Kahani ke baaki log (thag, dukaandaar, police wala, padosi, afsar) A ya B hi dress badal kar nibhate hain ("dressA"/"dressB"), ya narrator unki baat bata deta hai.\n` +
       `KAHANI KA FORMULA (pakka pakdo): 1) HOOK — pehli 5 second mein musibat ya chaunkane wala pal. 2) Shuruaat — kaun, kahan, kya chahta hai. 3) Musibat — koi thag/dabang fayda uthata hai ya A galti karta hai (mazaak bhi). 4) Kahani ke 25%, 50% aur 75% par ek naya mod/twist. 5) Insaaf sirf KANOONI raaste se (thana, FIR, helpline, consumer forum, court) — B sahi aam jaankari deta hai. 6) Ant — ${fun ? nB + " ki chhoti APNI 2-line shayari + " : ""}seekh + darshak se sawaal ("aapke saath aisa hua hai? comment mein batao") + agli kahani ka chhota ishara. ` +
@@ -532,7 +532,7 @@ Vishay: ${topic}`;
       `Topic area: ${GCATS[cat][0]}. ${GCAT_NOTE[cat]}\nStory idea: ${topic}${GEN}\n` +
       `FORMULA: hook within 5 seconds; setup (who/where/what they want); a problem (culture shock or a mistake, with humor); a new twist at 25%, 50% and 75%; resolution where B explains with accurate, well-established facts; ending: ${fun ? "B's short ORIGINAL two-line rhyme + " : ""}the lesson + a question to viewers + a tease of the next episode of the "${nA} in India" series. Move in 30-60 second mini-arcs; change scene or mood each arc; use travel scenes (car/bike/walk/cycle) when they travel, if available. ` +
       `Natural spoken English, contractions, real reactions; ${fun ? '2-3 clean jokes ("funny"), one playful scolding ("daant"), serious beats where respect is needed ("serious"), the closing rhyme ("shayari")' : FUN_EN}${STD_EN} Respect every culture and religion — explain, never mock; no stereotypes; never invent numbers, dates, names or quotes; fictional story, no real private people or companies.\n` +
-      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","cast":{"A":"(${DRS_LIST})","B":"(same list)"},"lines":[${LINE_JSON.replace("1-2 chhote bolchaal ke vakya", "1-2 short spoken sentences").replace("board/label ke liye 2-5 shabd", "2-5 words for the label").replace("SIRF jab is line se A ki dress badle", "ONLY when A changes costume from this line").replace("warna ye field mat do", "otherwise omit").replace("waise hi B ke liye", "same for B").replace("khaali chhodo", "leave empty")}]}\nAbout ${nl} lines.`;
+      `Return ONLY valid JSON: {"title":"(max 60 chars, curiosity-driven but honest)","description":"(3-5 lines; end with: 'Made for learning and fun. We check facts carefully, but tell us in the comments if we missed something!')","tags":["..."],"thumbnail_text":"(3-5 punchy words)","cast":{"A":"(${DRS_LIST})","B":"(same list)"},"lines":[${LINE_JSON.replace("1-2 chhote bolchaal ke vakya", "1-2 short spoken sentences").replace("board/label ke liye 2-5 shabd", "2-5 words for the label").replace("SIRF jab is line se A ki dress badle", "ONLY when A changes costume from this line").replace("warna ye field mat do", "otherwise omit").replace("waise hi B ke liye", "same for B").replace("is line ki jagah/cheez ki ASLI photo ki khoj, jaise", "search words for a REAL photo of this line's place or thing, e.g.").replace("kisi vyakti ka naam nahi", "never a person's name")}]}\nAbout ${nl} lines.`;
     const nDoc = { short: 6, mid: 14, long: 26 }[len];
     const DOC_SLIDE_HI = `{"heading":"(screen ke upar chhota tag, 2-5 shabd)","points":["(1-2 keyword, har ek 2-4 shabd)"],"narration":"(is hisse mein bolne ki line, Devanagari Hindi, ${len === "short" ? "1-2" : "2-3"} chhote vakya)","photo":"(1-4 English shabd: is hisse ke liye ASLI photo ki khoj, jaise 'Taj Mahal sunrise', 'Indian police station', 'Indian rupee notes', 'Delhi metro train'; jab tak cheez na badle wahi shabd; kisi vyakti ka naam KABHI nahi)"}`;
     const DOC_HI = `YouTube ke liye ek documentary-style video ki script banani hai — ek hi awaaz bolti hai aur peeche us baat ki asli photos chalti hain (Hindi, aam logon ke liye). Vishay:\n${topic}\n\n` +
@@ -587,6 +587,8 @@ Vishay: ${topic}`;
         plan.slides = (plan.lines || []).filter(l => l && l.text).map(l => ({ who: WHO(l.who),
           dA: l.dressA != null && l.dressA !== "" ? okD0(l.dressA) : null, dB: l.dressB != null && l.dressB !== "" ? okD0(l.dressB) : null, narration: String(l.text), heading: String(l.key || ""), emoji: l.emoji || "", points: [], photoQ: String(l.photo || "").trim().slice(0, 60), mood: ["funny", "serious", "daant", "shayari"].includes(String(l.mood || "").toLowerCase()) ? String(l.mood).toLowerCase() : "",
           scene: SCENES[String(l.scene || "").toLowerCase()] ? String(l.scene).toLowerCase() : "" }));
+        const ride = /helmet|हेलमेट|\bbike\b|बाइक|motor ?cycle|motorbike|मोटर ?साइकिल|scoot(y|er)|स्कूटी|two.?wheeler|challan|चालान|traffic|ट्रैफिक|driving licen[cs]e|ड्राइविंग/i.test(q + " " + (plan.title || ""));
+        if (ride && !plan.slides.some(x => x.scene === "bike" || x.scene === "car")) plan.slides.forEach(x => { if (!x.scene || x.scene === "sadak") x.scene = "bike"; }); // a bike/helmet topic is told on the bike
         if (len === "short" && plan.slides.length > nl + 1) plan.slides = plan.slides.slice(0, nl).concat(plan.slides.slice(-1)); // keep Shorts under ~40 s (keep the closing line)
         const okD = d => (DRESS[String(d || "").toLowerCase()] ? String(d).toLowerCase() : "");
         plan.cast = { A: okD((plan.cast || {}).A), B: okD((plan.cast || {}).B) };
@@ -985,12 +987,7 @@ Vishay: ${topic}`;
   }
   function overlay(ctx, w, h, channel, sc, F, dark) {
     if (channel) { ctx.textAlign = "right"; ctx.font = `${22 * sc}px ${F}`; ctx.fillStyle = dark ? "rgba(60,40,20,.75)" : "rgba(255,255,255,.6)"; ctx.fillText(channel, w - 24 * sc, 40 * sc); }
-    // always on screen: education only
-    ctx.textAlign = "left"; ctx.font = `bold ${18 * sc}px ${F}`;
-    const dl = !EN() ? (plan && plan.legal === false ? "📚 सिर्फ जानकारी के लिए" : "📚 सिर्फ शिक्षा/जानकारी के लिए — कानूनी सलाह नहीं") : CAT() === "money" ? "📚 Learning only — not financial advice" : CAT() === "scam" ? "📚 Learning only — not legal or financial advice" : CAT() === "mind" ? "📚 Learning only — not medical advice" : GL() ? "📚 For learning & fun" : "📚 For education only — not legal advice";
-    const dw = ctx.measureText(dl).width + 20 * sc;
-    ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fillRect(14 * sc, 14 * sc, dw, 32 * sc);
-    ctx.fillStyle = "#ffd166"; ctx.fillText(dl, 24 * sc, 36 * sc);
+    // (owner asked: no "education only" tag on screen — the YouTube description carries the disclaimer)
   }
 
   // ---------- cartoon (two original characters) ----------
@@ -1024,6 +1021,7 @@ Vishay: ${topic}`;
   };
   const SCN_LIST = () => Object.keys(SCENES).map(k => k || "room").join(" | ");
   const DRS_LIST = "none | " + Object.keys(DRESS).join(" | ");
+  const SCENE_PHOTO = { thana: "police station India", court: "court building India", bazaar: "Indian street market", ghar: "Indian home living room", gaon: "Indian village", sadak: "Indian road traffic", office: "office interior India", hospital: "hospital India", school: "school classroom India", bike: "Indian city road", car: "Indian highway", walk: "Indian street", cycle: "Indian village road" };
   const LABEL_SCENES = new Set(["thana", "court", "bazaar", "ghar", "gaon", "sadak", "office", "hospital"]);
 
   // ---------- body language: different movements for different kinds of speech ----------
@@ -1051,6 +1049,7 @@ Vishay: ${topic}`;
       case "wave": set(f, H(f, f * 128 + Math.sin(t * 6) * 22, -262)); P.wig = Math.sin(t * 6) * 0.18; break;
       case "hip": set(1, H(1, 82, -72, "fist")); set(-1, H(-1, -82, -72, "fist")); P.lean = -0.02 * f; break;
       case "nod": P.tilt = Math.sin(t * 4) * 0.05; break;
+      case "still": P.still = 1; break; // listening: no movement except blinking
     }
     return P;
   }
@@ -1066,9 +1065,11 @@ Vishay: ${topic}`;
       if (mood === "serious") return NUMW.test(txt) ? "count" : "point_board";
       if (q && sl.who === "A") return prog < 0.6 ? "shrug" : "think";
       if (NUMW.test(txt)) return "count";
-      const pool = ["explain", "point_other", "both_open", "point_board", "explain", "hip", "count"];
-      return pool[(idx * 5 + (prog > 0.55 ? 3 : 0)) % pool.length];
+      if (prog < 0.4) return "point_other"; // talks TO the other one: finger towards them
+      const pool = ["explain", "point_other", "both_open", "explain", "count"];
+      return pool[(idx * 3 + (prog > 0.7 ? 1 : 0)) % pool.length];
     }
+    return "still";
     if (mood === "funny") return prog > 0.35 ? "laugh" : "nod";
     if (mood === "daant") return prog > 0.5 ? "facepalm" : "scratch";
     if (mood === "shayari") return prog > 0.8 ? "clap" : "nod";
@@ -1115,7 +1116,7 @@ Vishay: ${topic}`;
     const L = lookOf(who), ph = who === "A" ? 0 : 2;
     P = P || poseOf(talking ? "explain" : "nod", face, tsec, 0.5, mouth);
     const bob = emo === "happy" ? Math.abs(Math.sin(tsec * 7)) * -4 * s : emo === "serious" ? Math.sin(tsec * 1.4 + ph) * 1 * s : talking ? Math.sin(tsec * 3.2 + ph) * 1.6 * s : Math.sin(tsec * 1.6 + ph) * 1.5 * s; // breathing, not bouncing
-    ctx.save(); ctx.translate(x + Math.sin(tsec * 0.7 + ph) * 3 * s, y + bob + (P.dy || 0) * s); ctx.rotate(P.lean || 0);
+    ctx.save(); ctx.translate(x + (P.still ? 0 : Math.sin(tsec * 0.7 + ph) * 3 * s), y + (P.still ? 0 : bob) + (P.dy || 0) * s); ctx.rotate(P.lean || 0);
     const DR = DRESS[P.dress] || null, chest = DR ? DR.chest : L.chest;
     const shirt = DR ? DR.shirt : L.shirt, skin = L.skin, line = look3d ? "rgba(43,36,32,.6)" : "#2b2420";
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line; ctx.lineJoin = "round"; ctx.lineCap = "round";
@@ -1200,7 +1201,7 @@ Vishay: ${topic}`;
     if (L.hair === "braid") { ctx.fillStyle = L.hc; const bs = -face; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.ellipse(bs * 58 * s, (-178 + k * 21) * s, (13 - k) * s, 13 * s, 0, 0, 7); ctx.fill(); } ctx.fillStyle = "#e2533c"; ctx.beginPath(); ctx.arc(bs * 58 * s, -78 * s, 6 * s, 0, 7); ctx.fill(); }
     // neck + head
     ctx.fillStyle = skin; ctx.fillRect(-18 * s, -172 * s, 36 * s, 30 * s);
-    const hy = -232 * s, nod = (!talking ? Math.sin(tsec * 2.2 + ph) * 0.035 : Math.sin(tsec * 2.6 + ph) * 0.025 + (mouth || 0) * 0.02) + (P.tilt || 0);
+    const hy = -232 * s, nod = P.still ? (P.tilt || 0) : (!talking ? Math.sin(tsec * 2.2 + ph) * 0.035 : Math.sin(tsec * 2.6 + ph) * 0.025 + (mouth || 0) * 0.02) + (P.tilt || 0);
     ctx.save(); ctx.translate(0, hy); ctx.rotate(nod);
     if (P.shake) ctx.translate(Math.sin(tsec * 11) * 5 * s * P.shake, 0);
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line;
@@ -1237,7 +1238,14 @@ Vishay: ${topic}`;
       ctx.quadraticCurveTo(56 * s, -40 * s, 4 * s, -50 * s); ctx.lineTo(-4 * s, -50 * s); ctx.quadraticCurveTo(-56 * s, -40 * s, -68 * s, 4 * s); ctx.fill();
     }
     if (look3d && L.hair !== "bald") { ctx.strokeStyle = "rgba(255,255,255,.22)"; ctx.lineWidth = 6 * s; ctx.beginPath(); ctx.arc(-10 * s, -10 * s, 62 * s, -2.45, -1.75); ctx.stroke(); ctx.strokeStyle = line; ctx.lineWidth = 4 * s; }
-    if (DR && DR.hat === "police") {
+    if (P.helmet) { // riding: proper helmet with visor and strap
+      const hc = who === "A" ? "#e63946" : "#1d3557";
+      ctx.fillStyle = look3d ? radial(ctx, 0, -50 * s, 80 * s, hc) : hc; ctx.beginPath(); ctx.moveTo(-76 * s, 10 * s); ctx.quadraticCurveTo(-84 * s, -112 * s, 0, -112 * s); ctx.quadraticCurveTo(84 * s, -112 * s, 76 * s, 10 * s); ctx.lineTo(60 * s, 14 * s); ctx.quadraticCurveTo(0, -36 * s, -60 * s, 14 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "rgba(40,60,80,.55)"; ctx.beginPath(); ctx.moveTo(-62 * s, -34 * s); ctx.quadraticCurveTo(0, -70 * s, 62 * s, -34 * s); ctx.lineTo(58 * s, -22 * s); ctx.quadraticCurveTo(0, -54 * s, -58 * s, -22 * s); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 5 * s; ctx.beginPath(); ctx.arc(-14 * s, -40 * s, 56 * s, -2.6, -1.9); ctx.stroke();
+      ctx.strokeStyle = "#222"; ctx.lineWidth = 4 * s; [-1, 1].forEach(d => { ctx.beginPath(); ctx.moveTo(d * 62 * s, 10 * s); ctx.quadraticCurveTo(d * 40 * s, 66 * s, 0, 70 * s); ctx.stroke(); });
+      ctx.strokeStyle = line; ctx.lineWidth = 4 * s;
+    } else if (DR && DR.hat === "police") {
       ctx.fillStyle = "#c9ad72"; ctx.beginPath(); ctx.moveTo(-70 * s, -40 * s); ctx.lineTo(-62 * s, -92 * s); ctx.quadraticCurveTo(0, -118 * s, 62 * s, -92 * s); ctx.lineTo(70 * s, -40 * s); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#3b2a14"; ctx.fillRect(-70 * s, -54 * s, 140 * s, 16 * s);
       ctx.fillStyle = "#1d1d22"; ctx.beginPath(); ctx.ellipse(face * 30 * s, -38 * s, 62 * s, 12 * s, 0, 0, Math.PI); ctx.fill();
@@ -1510,7 +1518,8 @@ Vishay: ${topic}`;
     if (d) d.value = plan.description;
   }
   async function findPhotos(manual) {
-    const qs = [...new Set(plan.slides.map(s => s.photoQ).filter(Boolean))].slice(0, 8);
+    if (plan.style === "cartoon") plan.slides.forEach(s => { if (!s.photoQ && SCENE_PHOTO[s.scene || ""]) s.photoQ = SCENE_PHOTO[s.scene || ""]; }); // a real place behind every scene
+    const qs = [...new Set(plan.slides.map(s => s.photoQ).filter(Boolean))].slice(0, 12);
     const out = $("#vmsg");
     if (!qs.length) { if (manual) toast("Script mein photo ke liye koi cheez nahi mili — 📷 Apni photo laga sakte ho"); return; }
     let got = 0, failed = 0;
@@ -1663,9 +1672,9 @@ Vishay: ${topic}`;
       if (far < 45) { ch.shape = hd.shape; ch.n = hd.n; } // change hand shape near the end of the move
     });
     ["tilt", "dy", "lean", "shake", "eyesUp", "wig"].forEach(f => { c[f] += ((P[f] || 0) - c[f]) * a; });
-    return Object.assign({}, P, { hands: c.hands.map(hd => ({ ...hd })), tilt: c.tilt, dy: c.dy, lean: c.lean, shake: c.shake > 0.05 ? c.shake : 0, eyesUp: c.eyesUp > 0.5 ? 1 : 0, wig: c.wig });
+    return Object.assign({}, P, { still: P.still, hands: c.hands.map(hd => ({ ...hd })), tilt: c.tilt, dy: c.dy, lean: c.lean, shake: c.shake > 0.05 ? c.shake : 0, eyesUp: c.eyesUp > 0.5 ? 1 : 0, wig: c.wig });
   }
-  const mouthMem = {};
+  const mouthMem = {}, camMem = {};
   function smoothMouth(k, v, t) {
     const m = mouthMem[k]; if (!m || t < m.t - 1e-6 || t - m.t > 0.6) { mouthMem[k] = { t, v }; return v; }
     const dt = Math.max(0, t - m.t), tau = v > m.v ? 0.035 : 0.09; m.v += (v - m.v) * (1 - Math.exp(-dt / tau)); m.t = t; return m.v;
@@ -1675,9 +1684,10 @@ Vishay: ${topic}`;
     const sc = Math.min(w, h) / 720, F = "'Noto Sans Devanagari','Noto Sans',sans-serif", v = w < h;
     const ph = photoAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
     const sid = sceneAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
-    const moving = !ph && MOVING.has(sid);
+    const moving = MOVING.has(sid);
     let fyM = 0;
-    if (ph) photoBg(ctx, w, h, ph, tsec, idx); else if (moving) fyM = movingBg(ctx, w, h, tsec, sid); else ctx.drawImage(sceneCache(w, h, sid), 0, 0);
+    if (ph) { photoBg(ctx, w, h, ph, tsec, idx); if (moving) { fyM = h * (v ? 0.8 : 0.78); const sg = ctx.createLinearGradient(0, fyM - 60 * sc, 0, h); sg.addColorStop(0, "rgba(0,0,0,0)"); sg.addColorStop(1, "rgba(0,0,0,.45)"); ctx.fillStyle = sg; ctx.fillRect(0, fyM - 60 * sc, w, h); } }
+    else if (moving) fyM = movingBg(ctx, w, h, tsec, sid); else ctx.drawImage(sceneCache(w, h, sid), 0, 0);
     const board = ph || moving || LABEL_SCENES.has(sid) ? label : boardBig;
     const names = (plan && plan.names) || (GL() ? { A: "Leo", B: "Priya" } : { A: "Pappu", B: "Chacha" });
     const who = kind === "slide" ? s.who : null;
@@ -1710,7 +1720,8 @@ Vishay: ${topic}`;
         if (sp && NEG.test(s.narration || "") && prog < 0.45) P.shake = 1; // "nahi" → head shake
       }
       P.dress = dressOf(k);
-      if (!TL) P = smoothPose(k, P, tsec || 0);
+      P = smoothPose(k, P, tsec || 0);
+      if (sid === "bike") P.helmet = 1;
       if (TL) {
         if (TL[k].legs) P.legs = TL[k].legs;
         const hd = TL.hands && TL.hands[k]; // holding the handlebar
@@ -1719,6 +1730,12 @@ Vishay: ${topic}`;
       }
       return P;
     };
+    // 🎥 camera: slowly moves in on whoever is speaking (picture changes every line, like animated shows)
+    const camT = kind === "slide" && !TL && (who === "A" || who === "B") ? 1 : 0, camX = who === "B" ? bx : ax;
+    const cm = camMem.t != null && tsec >= camMem.t && tsec - camMem.t < 0.6 ? camMem : (camMem.t = tsec, camMem.z = camT, camMem.x = camX, camMem);
+    { const a = 1 - Math.exp(-Math.max(0, tsec - cm.t) / 0.35); cm.z += (camT - cm.z) * a; cm.x += (camX - cm.x) * a; cm.t = tsec; }
+    const zoom = 1 + 0.12 * cm.z;
+    ctx.save(); if (zoom > 1.001) { const fx = cm.x, fy = Math.max(cy, cyB); ctx.translate(fx, fy); ctx.scale(zoom, zoom); ctx.translate(-fx, -fy); }
     if (TL && TL.back) TL.back(ctx);
     const drawA = () => drawChar(ctx, ax, cy, cs, "A", who === "A" ? mouth : 0, bl(0), who === "A" || (end && Math.sin(tsec * 6) > 0), tsec, 1, eA, gOf("A", 1));
     const drawB = () => drawChar(ctx, bx, cyB, cs, "B", who === "B" ? mouth : 0, bl(1.7), who === "B", tsec, -1, eB, gOf("B", -1));
@@ -1727,6 +1744,7 @@ Vishay: ${topic}`;
     // mood stickers
     const sticker = (x, e) => { const t = e === "happy" ? "😂" : e === "angry" ? "💢" : e === "sad" ? "😳" : ""; if (!t) return; ctx.font = `${40 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText(t, x + 60 * sc, (x === ax ? cy : cyB) - 296 * cs + Math.sin(tsec * 6) * 4 * sc); };
     sticker(ax, eA); sticker(bx, eB);
+    ctx.restore();
     if (mood === "shayari" && who) { ctx.font = `${34 * sc}px sans-serif`; ctx.textAlign = "center"; ctx.fillText("✨📜✨", who === "A" ? ax : bx, (who === "A" ? cy : cyB) - 384 * cs + Math.sin(tsec * 3) * 5 * sc); }
     // name tags
     ctx.font = `bold ${22 * sc}px ${F}`; ctx.textAlign = "center";
