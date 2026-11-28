@@ -1029,26 +1029,26 @@ Vishay: ${topic}`;
   // ---------- body language: different movements for different kinds of speech ----------
   // positions are relative to the feet; shoulders at y=-120, chin ≈ -170, head centre -232
   function poseOf(g, f, t, prog, m) {
-    const o = Math.sin(t * 5), o2 = Math.sin(t * 3.3 + 1), e = (m || 0) * 18;
+    const o = Math.sin(t * 2.4), o2 = Math.sin(t * 1.9 + 1), e = (m || 0) * 16;
     const idle = sd => ({ x: sd * 80, y: -12, shape: "open" });
     const H = (sd, x, y, shape, n) => ({ x, y, shape: shape || "open", n });
     const P = { hands: [idle(-1), idle(1)], tilt: 0, dy: 0, lean: 0, shake: 0, eyesUp: 0, wig: 0 };
     const set = (sd, h) => { P.hands[sd > 0 ? 1 : 0] = h; };
     switch (g) {
-      case "explain": set(f, H(f, f * 118, -150 + o * 18 - e)); set(-f, H(-f, -f * 96, -78 + o2 * 12)); P.lean = 0.03 * f; P.wig = o * 0.15; break;
-      case "both_open": set(1, H(1, 128, -122 + o * 12 - e)); set(-1, H(-1, -128, -122 - o * 12 - e)); P.tilt = 0.05 * o2; break;
+      case "explain": set(f, H(f, f * 118, -150 + o * 10 - e)); set(-f, H(-f, -f * 96, -78 + o2 * 12)); P.lean = 0.03 * f; P.wig = o * 0.15; break;
+      case "both_open": set(1, H(1, 128, -122 + o * 8 - e)); set(-1, H(-1, -128, -122 - o * 8 - e)); P.tilt = 0.05 * o2; break;
       case "point_other": set(f, H(f, f * 158, -158 + o * 6, "point")); P.lean = 0.05 * f; break;
       case "point_board": set(f, H(f, f * 58, -335 + o * 8, "point")); P.eyesUp = 1; P.tilt = -0.05 * f; break;
       case "count": set(f, H(f, f * 100, -205, "count", 1 + Math.floor(Math.min(0.99, prog) * 3))); set(-f, H(-f, -f * 90, -70)); break;
       case "shrug": set(1, H(1, 122, -96, "open")); set(-1, H(-1, -122, -96, "open")); P.dy = -6; P.tilt = 0.13 * f; break;
-      case "wag": set(f, H(f, f * 112 + Math.sin(t * 14) * 12, -232, "point")); set(-f, H(-f, -f * 80, -70, "fist")); P.lean = 0.06 * f; break;
+      case "wag": set(f, H(f, f * 112 + Math.sin(t * 8) * 10, -232, "point")); set(-f, H(-f, -f * 80, -70, "fist")); P.lean = 0.06 * f; break;
       case "heart": set(-f, H(-f, -f * 8, -112)); set(f, H(f, f * (110 + o * 20), -170 + o2 * 25)); P.tilt = 0.08 * Math.sin(t * 1.5); break;
-      case "laugh": set(1, H(1, 34, -58, "fist")); set(-1, H(-1, -34, -58, "fist")); P.dy = Math.abs(Math.sin(t * 13)) * -6; P.tilt = 0.06 * Math.sin(t * 9); break;
+      case "laugh": set(1, H(1, 34, -58, "fist")); set(-1, H(-1, -34, -58, "fist")); P.dy = Math.abs(Math.sin(t * 7)) * -5; P.tilt = 0.05 * Math.sin(t * 5); break;
       case "think": set(f, H(f, f * 18, -168, "fist")); set(-f, H(-f, f * 8, -74, "fist")); P.tilt = -0.09 * f; P.eyesUp = 1; break;
-      case "scratch": set(-f, H(-f, -f * 62, -292 + Math.sin(t * 16) * 5)); P.tilt = 0.1 * f; break;
+      case "scratch": set(-f, H(-f, -f * 62, -292 + Math.sin(t * 9) * 5)); P.tilt = 0.1 * f; break;
       case "facepalm": set(f, H(f, f * 6, -262)); P.tilt = 0.06; break;
-      case "clap": { const c = 14 + Math.abs(Math.sin(t * 11)) * 22; set(1, H(1, c, -132)); set(-1, H(-1, -c, -132)); break; }
-      case "wave": set(f, H(f, f * 128 + Math.sin(t * 10) * 26, -262)); P.wig = Math.sin(t * 10) * 0.2; break;
+      case "clap": { const c = 14 + Math.abs(Math.sin(t * 7)) * 22; set(1, H(1, c, -132)); set(-1, H(-1, -c, -132)); break; }
+      case "wave": set(f, H(f, f * 128 + Math.sin(t * 6) * 22, -262)); P.wig = Math.sin(t * 6) * 0.18; break;
       case "hip": set(1, H(1, 82, -72, "fist")); set(-1, H(-1, -82, -72, "fist")); P.lean = -0.02 * f; break;
       case "nod": P.tilt = Math.sin(t * 4) * 0.05; break;
     }
@@ -1114,7 +1114,7 @@ Vishay: ${topic}`;
   function drawChar(ctx, x, y, s, who, mouth, blink, talking, tsec, face, emo, P) {
     const L = lookOf(who), ph = who === "A" ? 0 : 2;
     P = P || poseOf(talking ? "explain" : "nod", face, tsec, 0.5, mouth);
-    const bob = emo === "happy" ? Math.abs(Math.sin(tsec * 13)) * -5 * s : emo === "serious" ? 0 : talking ? Math.sin(tsec * 9) * 2.5 * s : Math.sin(tsec * 1.6 + ph) * 1.5 * s;
+    const bob = emo === "happy" ? Math.abs(Math.sin(tsec * 7)) * -4 * s : emo === "serious" ? Math.sin(tsec * 1.4 + ph) * 1 * s : talking ? Math.sin(tsec * 3.2 + ph) * 1.6 * s : Math.sin(tsec * 1.6 + ph) * 1.5 * s; // breathing, not bouncing
     ctx.save(); ctx.translate(x + Math.sin(tsec * 0.7 + ph) * 3 * s, y + bob + (P.dy || 0) * s); ctx.rotate(P.lean || 0);
     const DR = DRESS[P.dress] || null, chest = DR ? DR.chest : L.chest;
     const shirt = DR ? DR.shirt : L.shirt, skin = L.skin, line = look3d ? "rgba(43,36,32,.6)" : "#2b2420";
@@ -1200,9 +1200,9 @@ Vishay: ${topic}`;
     if (L.hair === "braid") { ctx.fillStyle = L.hc; const bs = -face; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.ellipse(bs * 58 * s, (-178 + k * 21) * s, (13 - k) * s, 13 * s, 0, 0, 7); ctx.fill(); } ctx.fillStyle = "#e2533c"; ctx.beginPath(); ctx.arc(bs * 58 * s, -78 * s, 6 * s, 0, 7); ctx.fill(); }
     // neck + head
     ctx.fillStyle = skin; ctx.fillRect(-18 * s, -172 * s, 36 * s, 30 * s);
-    const hy = -232 * s, nod = (!talking ? Math.sin(tsec * 2.2 + ph) * 0.04 : (mouth || 0) * 0.05) + (P.tilt || 0);
+    const hy = -232 * s, nod = (!talking ? Math.sin(tsec * 2.2 + ph) * 0.035 : Math.sin(tsec * 2.6 + ph) * 0.025 + (mouth || 0) * 0.02) + (P.tilt || 0);
     ctx.save(); ctx.translate(0, hy); ctx.rotate(nod);
-    if (P.shake) ctx.translate(Math.sin(tsec * 18) * 6 * s * P.shake, 0);
+    if (P.shake) ctx.translate(Math.sin(tsec * 11) * 5 * s * P.shake, 0);
     ctx.lineWidth = 4 * s; ctx.strokeStyle = line;
     if (look3d) ctx.fillStyle = radial(ctx, 0, 0, 70 * s, skin);
     ctx.beginPath(); ctx.ellipse(0, 0, 66 * s, 72 * s, 0, 0, 7); ctx.fill(); ctx.stroke();
@@ -1649,7 +1649,29 @@ Vishay: ${topic}`;
     return sceneMap.get(k);
   }
   const sceneAt = idx => { if (!plan || !plan.slides) return ""; for (let i = Math.min(idx, plan.slides.length - 1); i >= 0; i--) if (plan.slides[i].scene != null) return plan.slides[i].scene; return ""; };
+  // 🎞️ smooth movement: hands, head and body ease into each new gesture (~0.3 s) instead of jumping,
+  // and the mouth opens fast but closes softly — no flicker
+  const poseMem = {};
+  function smoothPose(k, P, t) {
+    const m = poseMem[k];
+    if (!m || t < m.t - 1e-6 || t - m.t > 0.6) { poseMem[k] = { t, P: JSON.parse(JSON.stringify({ hands: P.hands, tilt: P.tilt || 0, dy: P.dy || 0, lean: P.lean || 0, shake: P.shake || 0, eyesUp: P.eyesUp || 0, wig: P.wig || 0 })) }; return P; }
+    const dt = Math.max(0, t - m.t), a = 1 - Math.exp(-dt / 0.11), c = m.P; m.t = t;
+    P.hands.forEach((hd, i) => {
+      const ch = c.hands[i] || (c.hands[i] = { ...hd });
+      const far = Math.hypot(hd.x - ch.x, hd.y - ch.y);
+      ch.x += (hd.x - ch.x) * a; ch.y += (hd.y - ch.y) * a;
+      if (far < 45) { ch.shape = hd.shape; ch.n = hd.n; } // change hand shape near the end of the move
+    });
+    ["tilt", "dy", "lean", "shake", "eyesUp", "wig"].forEach(f => { c[f] += ((P[f] || 0) - c[f]) * a; });
+    return Object.assign({}, P, { hands: c.hands.map(hd => ({ ...hd })), tilt: c.tilt, dy: c.dy, lean: c.lean, shake: c.shake > 0.05 ? c.shake : 0, eyesUp: c.eyesUp > 0.5 ? 1 : 0, wig: c.wig });
+  }
+  const mouthMem = {};
+  function smoothMouth(k, v, t) {
+    const m = mouthMem[k]; if (!m || t < m.t - 1e-6 || t - m.t > 0.6) { mouthMem[k] = { t, v }; return v; }
+    const dt = Math.max(0, t - m.t), tau = v > m.v ? 0.035 : 0.09; m.v += (v - m.v) * (1 - Math.exp(-dt / tau)); m.t = t; return m.v;
+  }
   function cartoonFrame(ctx, w, h, kind, s, prog, idx, total, channel, tsec, mouth) {
+    mouth = smoothMouth("m", mouth || 0, tsec || 0);
     const sc = Math.min(w, h) / 720, F = "'Noto Sans Devanagari','Noto Sans',sans-serif", v = w < h;
     const ph = photoAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
     const sid = sceneAt(kind === "slide" ? idx : kind === "end" ? 1e9 : 0);
@@ -1688,6 +1710,7 @@ Vishay: ${topic}`;
         if (sp && NEG.test(s.narration || "") && prog < 0.45) P.shake = 1; // "nahi" → head shake
       }
       P.dress = dressOf(k);
+      if (!TL) P = smoothPose(k, P, tsec || 0);
       if (TL) {
         if (TL[k].legs) P.legs = TL[k].legs;
         const hd = TL.hands && TL.hands[k]; // holding the handlebar
